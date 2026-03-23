@@ -153,6 +153,15 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
 .date-select:focus{outline:none;border-color:var(--green)}
 .adj-banner{background:var(--blue-light);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--blue);margin-bottom:12px;line-height:1.6}
 
+/* ── 로그아웃 확인 모달 ── */
+.logout-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center}
+.logout-modal-bg.show{display:flex}
+.logout-modal{background:var(--white);border-radius:18px;padding:28px 24px 20px;width:calc(100% - 48px);max-width:320px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.15)}
+.logout-modal-title{font-size:16px;font-weight:700;margin-bottom:8px}
+.logout-modal-sub{font-size:13px;color:var(--gray-600);margin-bottom:22px;line-height:1.5}
+.logout-modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.logout-cancel{border:1.5px solid var(--border);background:transparent;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900)}
+.logout-confirm{border:none;background:var(--red);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--white)}
 </style>
 </head>
 <body>
@@ -196,6 +205,18 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
   <button class="tab" onclick="go('order',this)"><span class="tab-icon">🛒</span>자동발주</button>
   <button class="tab" onclick="go('inbound',this)"><span class="tab-icon">🚚</span>입고관리</button>
 </nav>
+
+<!-- 로그아웃 확인 모달 -->
+<div class="logout-modal-bg" id="logoutModalBg">
+  <div class="logout-modal">
+    <div class="logout-modal-title">로그아웃</div>
+    <div class="logout-modal-sub">정말 로그아웃 하시겠어요?</div>
+    <div class="logout-modal-btns">
+      <button class="logout-cancel" onclick="cancelLogout()">취소</button>
+      <button class="logout-confirm" onclick="confirmLogout()">로그아웃</button>
+    </div>
+  </div>
+</div>
 
 <!-- 품목 추가 모달 -->
 <div class="modal-bg" id="modalBg" onclick="closeModal(event)">
@@ -299,6 +320,7 @@ function go(tab,btn){
 // 1. 재고 입력
 // ══════════════════════
 let submitted=false;
+let resetMode=false;
 
 async function renderInput(){
   const ITEMS=loadItems();
@@ -328,6 +350,12 @@ async function renderInput(){
     rows.forEach(r=>{prevData[r.item_id]=r.remain_qty;});
   }catch(e){}
 
+  // 오늘 이미 모든 품목이 제출됐으면 (메모리 또는 DB 기준) 성공 화면
+  if(!resetMode){
+    const allSubmitted = ITEMS.length > 0 && ITEMS.every(it => todayData[it.id] !== undefined);
+    if(allSubmitted) submitted = true;
+  }
+
   if(submitted){
     document.getElementById('inputMain').innerHTML=`
     <div class="success-screen">
@@ -345,7 +373,8 @@ async function renderInput(){
     const prev=prevData[it.id]!==undefined?prevData[it.id]:null;
     const ib=inboundData[it.id]||0;
     const theory=prev!==null?prev+ib:ib;
-    const saved=todayData[it.id]!==undefined?todayData[it.id]:'';
+    // 다시 입력하기 모드에서는 입력칸 비움, 아니면 오늘 저장된 값 복원
+    const saved=(!resetMode && todayData[it.id]!==undefined)?todayData[it.id]:'';
     const consumed=saved!==''?theory-Number(saved):null;
 
     html+=`<div class="input-item">
@@ -373,6 +402,7 @@ async function renderInput(){
 
   html+=`<button class="btn-main" id="submitBtn" onclick="submitStocks()">오늘 재고 제출하기</button>`;
   document.getElementById('inputMain').innerHTML=html;
+  resetMode=false; // 렌더 완료 후 플래그 초기화
 }
 
 function previewConsumed(id,theory,unit){
@@ -455,7 +485,7 @@ async function submitStocks(){
   }
 }
 
-function resetInput(){submitted=false;renderInput();}
+function resetInput(){submitted=false;resetMode=true;renderInput();}
 
 // ══════════════════════
 // 2. 대시보드
@@ -780,10 +810,17 @@ function onLoginSuccess(){
 }
 
 function doLogout(){
-  if(!confirm('로그아웃 할까요?')) return;
+  document.getElementById('logoutModalBg').classList.add('show');
+}
+function cancelLogout(){
+  document.getElementById('logoutModalBg').classList.remove('show');
+}
+function confirmLogout(){
+  document.getElementById('logoutModalBg').classList.remove('show');
   SESSION_TOKEN = SB_KEY;
   currentUser   = null;
   currentRole   = null;
+  submitted     = false;
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('appBody').style.display='none';
   document.getElementById('loginEmail').value='';
