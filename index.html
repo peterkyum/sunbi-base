@@ -17,6 +17,23 @@
   --gray-900:#1a1a1a;--gray-600:#666;--gray-300:#ccc;--gray-100:#f5f5f3;
   --white:#fff;--border:rgba(0,0,0,0.1);
 }
+
+/* ── 로그인 화면 ── */
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:var(--gray-100)}
+.login-card{background:var(--white);border-radius:20px;border:1px solid var(--border);padding:32px 24px;width:100%;max-width:360px}
+.login-logo{width:56px;height:56px;background:var(--green);border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--green-light);font-size:28px;margin:0 auto 16px}
+.login-title{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px}
+.login-sub{font-size:13px;color:var(--gray-600);text-align:center;margin-bottom:28px}
+.login-label{font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:6px}
+.login-input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;font-size:15px;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);background:var(--white);margin-bottom:12px}
+.login-input:focus{outline:none;border-color:var(--green)}
+.login-err{font-size:12px;color:var(--red);text-align:center;margin-bottom:10px;min-height:18px}
+.role-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-left:8px}
+.role-dist{background:var(--amber-light);color:var(--amber)}
+.role-hq{background:var(--green-light);color:var(--green)}
+.logout-btn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:4px 12px;font-size:12px;color:var(--gray-600);cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-left:auto}
+.logout-btn:hover{background:var(--gray-100)}
+
 body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(--gray-900);min-height:100vh;padding-bottom:90px}
 
 .topbar{background:var(--white);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
@@ -123,6 +140,23 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
 </head>
 <body>
 
+<!-- 로그인 화면 -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">麵</div>
+    <div class="login-title">선비칼국수 재고관리</div>
+    <div class="login-sub">계정으로 로그인하세요</div>
+    <div class="login-label">이메일</div>
+    <input class="login-input" type="email" id="loginEmail" placeholder="이메일 입력" autocomplete="email">
+    <div class="login-label">비밀번호</div>
+    <input class="login-input" type="password" id="loginPw" placeholder="비밀번호 입력" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn-main" id="loginBtn" onclick="doLogin()">로그인</button>
+  </div>
+</div>
+
+<!-- 앱 본체 (로그인 후 표시) -->
+<div id="appBody" style="display:none">
 <div class="topbar">
   <div class="logo">麵</div>
   <div>
@@ -130,6 +164,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
     <div class="topbar-date" id="todayStr"></div>
   </div>
   <div class="sync-dot" id="syncDot" title="서버 연결 상태"></div>
+  <span class="role-badge" id="roleBadge"></span>
+  <button class="logout-btn" onclick="doLogout()">로그아웃</button>
 </div>
 
 <div class="sec on" id="sec-input"><div id="inputMain"><div class="loading-box"><div class="spinner"></div>불러오는 중...</div></div></div>
@@ -161,22 +197,25 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 // ══════════════════════════════════════
 // Supabase 연결 설정
 // ══════════════════════════════════════
 const SB_URL = 'https://nhgkzquqbxbzwejzcdft.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oZ2t6cXVxYnhiendlanpjZGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjc5NzgsImV4cCI6MjA4OTgwMzk3OH0.K8CIaX3nPQ9EzBvhjpMol8Ng9i-7iM71HxboAXhx0QM';
-const HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
+let SESSION_TOKEN = SB_KEY;
+const HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SESSION_TOKEN};
+function getHeaders(){return {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SESSION_TOKEN};}
 
 async function sbGet(table, query=''){
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {headers:{...HEADERS,'Prefer':'return=representation'}});
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {headers:{...getHeaders(),'Prefer':'return=representation'}});
   if(!res.ok) throw new Error(await res.text());
   return res.json();
 }
 async function sbInsert(table, data){
   const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
-    method:'POST', headers:{...HEADERS,'Prefer':'return=representation'},
+    method:'POST', headers:{...getHeaders(),'Prefer':'return=representation'},
     body: JSON.stringify(data)
   });
   if(!res.ok) throw new Error(await res.text());
@@ -184,14 +223,14 @@ async function sbInsert(table, data){
 }
 async function sbUpsert(table, data, onConflict){
   const res = await fetch(`${SB_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
-    method:'POST', headers:{...HEADERS,'Prefer':'resolution=merge-duplicates,return=representation'},
+    method:'POST', headers:{...getHeaders(),'Prefer':'resolution=merge-duplicates,return=representation'},
     body: JSON.stringify(data)
   });
   if(!res.ok) throw new Error(await res.text());
   return res.json();
 }
 async function sbDelete(table, query){
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {method:'DELETE', headers:HEADERS});
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {method:'DELETE', headers:getHeaders()});
   if(!res.ok) throw new Error(await res.text());
 }
 
@@ -299,7 +338,7 @@ async function renderInput(){
       </div>
       <div class="input-row">
         <div>
-          <div class="input-label">이론 재고</div>
+          <div class="input-label">전날 최종재고</div>
           <div class="input-val">${theory}${it.unit}</div>
         </div>
         <div>
@@ -330,6 +369,24 @@ function previewConsumed(id,theory,unit){
   prev.style.background=consumed<0?'#FCEBEB':'#EAF3DE';
 }
 
+// ── 이메일 알림 설정 (emailjs.com 가입 후 아래 4줄 교체) ──
+const EMAILJS_SERVICE  = 'YOUR_SERVICE_ID';
+const EMAILJS_TEMPLATE = 'YOUR_TEMPLATE_ID';
+const EMAILJS_PUBLIC   = 'YOUR_PUBLIC_KEY';
+const NOTIFY_EMAIL     = 'your@email.com';
+
+async function sendNotificationEmail(rows, today){
+  try{
+    const itemLines = rows.map(r=>`• ${r.item_name}: 현재 ${r.remain_qty}박스 (소진 ${r.consumed_qty}박스)`).join('\n');
+    await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+      to_email: NOTIFY_EMAIL,
+      subject: `[선비칼국수] ${today} 재고 입력 완료`,
+      message: `유통사 담당자가 오늘 재고를 입력했습니다.\n\n${itemLines}\n\n앱에서 자세히 확인하세요.`,
+      date: today,
+    }, EMAILJS_PUBLIC);
+  }catch(e){ console.warn('이메일 전송 실패:', e); }
+}
+
 async function submitStocks(){
   const ITEMS=loadItems();
   const today=todayISO();
@@ -338,7 +395,6 @@ async function submitStocks(){
   const month=thisMonth();
   const btn=document.getElementById('submitBtn');
 
-  // 유효성 검사
   let allFilled=true;
   ITEMS.forEach(it=>{const el=document.getElementById('inp-'+it.id);if(!el||el.value==='')allFilled=false;});
   if(!allFilled){alert('모든 품목을 입력해 주세요!');return;}
@@ -346,7 +402,6 @@ async function submitStocks(){
   btn.disabled=true;btn.textContent='저장 중...';
 
   try{
-    // 전일 재고 & 입고량 가져오기
     const [prevRows, ibRows] = await Promise.all([
       sbGet('stocks',`date=eq.${yISO}&select=item_id,remain_qty`),
       sbGet('inbound',`month=eq.${month}&select=item_id,qty`)
@@ -354,7 +409,6 @@ async function submitStocks(){
     const prevMap={};prevRows.forEach(r=>{prevMap[r.item_id]=r.remain_qty;});
     const ibMap={};ibRows.forEach(r=>{ibMap[r.item_id]=r.qty;});
 
-    // 기존 오늘 데이터 삭제 후 재삽입
     await sbDelete('stocks',`date=eq.${today}`);
 
     const rows=ITEMS.map(it=>{
@@ -373,6 +427,7 @@ async function submitStocks(){
     });
 
     await sbInsert('stocks',rows);
+    await sendNotificationEmail(rows, today);
     submitted=true;
     document.getElementById('syncDot').className='sync-dot ok';
     renderInput();
@@ -636,9 +691,85 @@ function addItem(){
   renderInbound();
 }
 
+// ══════════════════════
+// 로그인 / 인증
+// ══════════════════════
+
+// 유통사 이메일 목록 (소문자로 저장)
+const DIST_EMAILS = ['dist@sunbi.com'];
+const HQ_EMAILS   = ['hq@sunbi.com'];
+
+let currentUser = null;
+let currentRole = null; // 'dist' | 'hq'
+
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pw    = document.getElementById('loginPw').value;
+  const btn   = document.getElementById('loginBtn');
+  const err   = document.getElementById('loginErr');
+  err.textContent = '';
+  if(!email||!pw){err.textContent='이메일과 비밀번호를 입력해 주세요.';return;}
+  btn.disabled=true; btn.textContent='로그인 중...';
+  try{
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY},
+      body:JSON.stringify({email,password:pw})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error_description||data.msg||'로그인 실패');
+    SESSION_TOKEN = data.access_token;
+    currentUser   = data.user;
+    currentRole   = HQ_EMAILS.includes(email) ? 'hq' : 'dist';
+    onLoginSuccess();
+  }catch(e){
+    err.textContent = e.message==='Invalid login credentials' ? '이메일 또는 비밀번호가 틀렸어요.' : e.message;
+    btn.disabled=false; btn.textContent='로그인';
+  }
+}
+
+function onLoginSuccess(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appBody').style.display='block';
+
+  // 역할 배지 표시
+  const badge = document.getElementById('roleBadge');
+  if(currentRole==='hq'){
+    badge.textContent='본사';
+    badge.className='role-badge role-hq';
+  } else {
+    badge.textContent='유통사';
+    badge.className='role-badge role-dist';
+  }
+
+  // 본사는 모든 탭, 유통사는 재고입력만
+  if(currentRole==='dist'){
+    document.querySelectorAll('.tab').forEach((t,i)=>{
+      if(i!==0) t.style.display='none';
+    });
+  }
+
+  checkConnection();
+  renderInput();
+}
+
+function doLogout(){
+  if(!confirm('로그아웃 할까요?')) return;
+  SESSION_TOKEN = SB_KEY;
+  currentUser   = null;
+  currentRole   = null;
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('appBody').style.display='none';
+  document.getElementById('loginEmail').value='';
+  document.getElementById('loginPw').value='';
+  document.getElementById('loginErr').textContent='';
+  document.getElementById('loginBtn').disabled=false;
+  document.getElementById('loginBtn').textContent='로그인';
+}
+
 // ── 초기 실행 ──
-checkConnection();
-renderInput();
+// 로그인 화면만 먼저 보여줌
 </script>
+</div><!-- /appBody -->
 </body>
 </html>
