@@ -8,18 +8,10 @@
 // ──────────────────────────────────────────────
 
 const SHEET_NAME = '재고기록';
-
-// ★ 최초 1회 실행 필요 (스프레드시트 ID 저장)
-function setup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
-  Logger.log('✅ 연결 완료: ' + ss.getName() + ' (' + ss.getId() + ')');
-}
+const SPREADSHEET_ID = '1ZSz3IAa8B--i4wSixq6gDkEUb4s-OV9j-C2HAl4sKAM';
 
 function getSpreadsheet() {
-  const id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (!id) throw new Error('setup() 함수를 먼저 실행해 주세요.');
-  return SpreadsheetApp.openById(id);
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
 }
 
 function doPost(e) {
