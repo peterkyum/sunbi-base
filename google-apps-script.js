@@ -1,13 +1,16 @@
 // ──────────────────────────────────────────────
 // 선비칼국수 재고 구글 시트 자동 기록
 // ──────────────────────────────────────────────
-// [설치 방법]
-// 1. https://script.google.com 접속 → 새 프로젝트
-// 2. 이 코드 전체 붙여넣기
-// 3. 상단 메뉴 → 배포 → 새 배포
+// [설치 방법 - 반드시 이 순서로!]
+// 1. Google Drive에서 새 스프레드시트 생성
+// 2. 스프레드시트 열고 → 상단 메뉴 [확장 프로그램] → [Apps Script]
+// 3. 이 코드 전체 붙여넣기 (기존 코드 삭제 후)
+// 4. 저장 (Ctrl+S)
+// 5. 상단 [배포] → [새 배포]
 //    - 유형: 웹 앱
+//    - 실행 계정: 나 (본인 계정)
 //    - 액세스: 모든 사용자
-// 4. 배포 URL 복사 → index.html의 GOOGLE_SCRIPT_URL에 붙여넣기
+// 6. 배포 클릭 → URL 복사 → index.html의 GOOGLE_SCRIPT_URL에 붙여넣기
 // ──────────────────────────────────────────────
 
 const SHEET_NAME = '재고기록';
@@ -18,7 +21,6 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName(SHEET_NAME);
 
-    // 시트가 없으면 새로 생성 + 헤더 추가
     if (!sheet) {
       sheet = ss.insertSheet(SHEET_NAME);
       const header = ['날짜', '제품명', '현재재고(박스)', '소진량(박스)', '당일입고(박스)', '기록시간'];
@@ -29,7 +31,7 @@ function doPost(e) {
 
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
 
-    // 같은 날짜 기존 행 삭제 (중복 방지 - 재제출 시 덮어쓰기)
+    // 같은 날짜 기존 행 삭제 (재제출 시 덮어쓰기)
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       const dateCol = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
@@ -40,7 +42,6 @@ function doPost(e) {
       }
     }
 
-    // 새 행 추가
     data.rows.forEach(row => {
       sheet.appendRow([
         data.date,
