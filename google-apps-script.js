@@ -1,24 +1,31 @@
 // ──────────────────────────────────────────────
 // 선비칼국수 재고 구글 시트 자동 기록
 // ──────────────────────────────────────────────
-// [설치 방법 - 반드시 이 순서로!]
-// 1. Google Drive에서 새 스프레드시트 생성
-// 2. 스프레드시트 열고 → 상단 메뉴 [확장 프로그램] → [Apps Script]
-// 3. 이 코드 전체 붙여넣기 (기존 코드 삭제 후)
-// 4. 저장 (Ctrl+S)
-// 5. 상단 [배포] → [새 배포]
-//    - 유형: 웹 앱
-//    - 실행 계정: 나 (본인 계정)
-//    - 액세스: 모든 사용자
-// 6. 배포 클릭 → URL 복사 → index.html의 GOOGLE_SCRIPT_URL에 붙여넣기
+// [설치 방법]
+// 1. 스프레드시트 → 확장 프로그램 → Apps Script 에서 이 코드 붙여넣기
+// 2. 상단에서 실행할 함수를 [setup] 으로 선택 후 ▶ 실행 (최초 1회)
+// 3. 배포 → 새 배포 → 웹 앱 → 액세스: 모든 사용자 → 배포
 // ──────────────────────────────────────────────
 
 const SHEET_NAME = '재고기록';
 
+// ★ 최초 1회 실행 필요 (스프레드시트 ID 저장)
+function setup() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
+  Logger.log('✅ 연결 완료: ' + ss.getName() + ' (' + ss.getId() + ')');
+}
+
+function getSpreadsheet() {
+  const id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (!id) throw new Error('setup() 함수를 먼저 실행해 주세요.');
+  return SpreadsheetApp.openById(id);
+}
+
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getSpreadsheet();
     let sheet = ss.getSheetByName(SHEET_NAME);
 
     if (!sheet) {
