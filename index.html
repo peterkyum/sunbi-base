@@ -350,6 +350,40 @@ async function renderInput(){
     rows.forEach(r=>{prevData[r.item_id]=r.remain_qty;});
   }catch(e){}
 
+  // ── 본사: 읽기 전용 뷰 ──
+  if(currentRole==='hq'){
+    const hasToday = ITEMS.length > 0 && ITEMS.some(it => todayData[it.id] !== undefined);
+    let html = hasToday
+      ? `<div class="alert alert-green"><div class="dot dot-green"></div>유통사가 오늘 재고를 입력했어요. 대시보드에서 전체 현황을 확인하세요.</div>`
+      : `<div class="alert alert-amber"><div class="dot dot-amber"></div>아직 오늘 재고가 입력되지 않았어요.</div>`;
+
+    ITEMS.forEach(it=>{
+      const current = todayData[it.id]!==undefined ? todayData[it.id] : null;
+      const prev = prevData[it.id]!==undefined ? prevData[it.id] : null;
+      const ib = inboundData[it.id]||0;
+      html+=`<div class="input-item">
+        <div class="input-item-top">
+          <span class="item-name">${it.name}</span>
+          <span class="item-info">${prev!==null?`전일 ${prev}${it.unit}`:'전일 미입력'}<br>입고 +${ib}${it.unit}</span>
+        </div>
+        <div class="input-row">
+          <div>
+            <div class="input-label">전날 최종재고</div>
+            <div class="input-val">${prev!==null?prev+ib:ib}${it.unit}</div>
+          </div>
+          <div>
+            <div class="input-label">현재 재고</div>
+            <div class="input-val" style="color:${current!==null?'var(--green)':'var(--gray-600)'}">
+              ${current!==null?current+it.unit:'미입력'}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+    document.getElementById('inputMain').innerHTML=html;
+    return;
+  }
+
   // 오늘 이미 모든 품목이 제출됐으면 (메모리 또는 DB 기준) 성공 화면
   if(!resetMode){
     const allSubmitted = ITEMS.length > 0 && ITEMS.every(it => todayData[it.id] !== undefined);
@@ -370,17 +404,25 @@ async function renderInput(){
   let html=`<div class="alert alert-amber"><div class="dot dot-amber"></div>오늘 남은 재고를 품목별로 입력하고 제출해 주세요.</div>`;
 
   ITEMS.forEach(it=>{
-    const prev=prevData[it.id]!==undefined?prevData[it.id]:null;
+    // resetMode(다시 입력하기)일 때는 오늘 제출값을 전날 최종재고로 사용
+    const prevBase = resetMode && todayData[it.id]!==undefined
+      ? todayData[it.id]
+      : (prevData[it.id]!==undefined ? prevData[it.id] : null);
     const ib=inboundData[it.id]||0;
-    const theory=prev!==null?prev+ib:ib;
+    const theory=prevBase!==null?prevBase+ib:ib;
     // 다시 입력하기 모드에서는 입력칸 비움, 아니면 오늘 저장된 값 복원
     const saved=(!resetMode && todayData[it.id]!==undefined)?todayData[it.id]:'';
     const consumed=saved!==''?theory-Number(saved):null;
 
+    // 우측 상단 info: resetMode엔 오늘 제출값 표시, 아니면 진짜 전일 데이터
+    const prevLabel = resetMode && todayData[it.id]!==undefined
+      ? `오늘 제출 ${todayData[it.id]}${it.unit}`
+      : (prevData[it.id]!==undefined ? `전일 ${prevData[it.id]}${it.unit}` : '전일 미입력');
+
     html+=`<div class="input-item">
       <div class="input-item-top">
         <span class="item-name">${it.name}</span>
-        <span class="item-info">${prev!==null?`전일 ${prev}${it.unit}`:'전일 미입력'}<br>입고 +${ib}${it.unit}</span>
+        <span class="item-info">${prevLabel}<br>입고 +${ib}${it.unit}</span>
       </div>
       <div class="input-row">
         <div>
@@ -798,15 +840,27 @@ function onLoginSuccess(){
 
   // 탭 표시 초기화 (로그아웃 후 재로그인 대비)
   document.querySelectorAll('.tab').forEach(t=>{ t.style.display='flex'; });
-  // 유통사는 재고입력 탭만
+
   if(currentRole==='dist'){
+    // 유통사는 재고입력 탭만
     document.querySelectorAll('.tab').forEach((t,i)=>{
       if(i!==0) t.style.display='none';
     });
+    checkConnection();
+    renderInput();
+  } else {
+    // 본사는 재고입력 탭 숨기고 대시보드를 기본으로
+    document.querySelectorAll('.tab')[0].style.display='none';
+    // 대시보드 탭 활성화
+    const tabs = document.querySelectorAll('.tab');
+    const secs = document.querySelectorAll('.sec');
+    secs.forEach(s=>s.classList.remove('on'));
+    tabs.forEach(t=>t.classList.remove('on'));
+    document.getElementById('sec-dash').classList.add('on');
+    tabs[1].classList.add('on');
+    checkConnection();
+    renderDash();
   }
-
-  checkConnection();
-  renderInput();
 }
 
 function doLogout(){
