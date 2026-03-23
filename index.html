@@ -605,6 +605,7 @@ async function submitStocks(){
     const dailyIbMap={};
     ibEntries.forEach(e=>{dailyIbMap[e.item_id]=e.qty;});
     await sendTelegramNotification(rows, today, dailyIbMap);
+    await sendToGoogleSheet(rows, today, dailyIbMap);
     await sendNotificationEmail(rows, today);
     submitted=true;
     document.getElementById('syncDot').className='sync-dot ok';
