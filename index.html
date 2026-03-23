@@ -507,6 +507,7 @@ async function sendToGoogleSheet(rows, today, dailyInbound){
   if(!GOOGLE_SCRIPT_URL) return;
   try{
     const payload={
+      spreadsheetId: '1ZSz3IAa8B--i4wSixq6gDkEUb4s-OV9j-C2HAl4sKAM',
       date: today,
       rows: rows.map(r=>({
         item_name:  r.item_name,
