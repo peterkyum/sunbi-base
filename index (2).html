@@ -136,6 +136,23 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
 .month-select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);background:var(--white);margin-bottom:12px}
 .month-select:focus{outline:none;border-color:var(--green)}
 .section-label{font-size:12px;font-weight:700;color:var(--gray-600);margin:16px 0 8px;padding:0 2px}
+
+/* ── 재고 조정 ── */
+.adj-item{background:var(--white);border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:8px}
+.adj-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.adj-name{font-size:14px;font-weight:700}
+.adj-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end}
+.adj-label{font-size:11px;color:var(--gray-600);margin-bottom:4px;font-weight:700}
+.adj-val{font-size:14px;font-weight:700;color:var(--gray-600);background:var(--gray-100);border-radius:7px;padding:8px 10px}
+.adj-new{font-size:14px;font-weight:700;color:var(--green)}
+.diff-chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;margin-top:6px}
+.diff-plus{background:var(--red-light);color:var(--red)}
+.diff-minus{background:var(--green-light);color:var(--green)}
+.diff-zero{background:var(--gray-100);color:var(--gray-600)}
+.date-select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);background:var(--white);margin-bottom:12px}
+.date-select:focus{outline:none;border-color:var(--green)}
+.adj-banner{background:var(--blue-light);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--blue);margin-bottom:12px;line-height:1.6}
+
 </style>
 </head>
 <body>
@@ -511,6 +528,11 @@ async function renderDash(){
       html+=`</tbody></table></div></div>`;
     }
 
+    // 본사만 재고 조정 버튼 보임
+    if(currentRole==='hq'){
+      html+=`<button class="btn-sub" onclick="openAdjModal()" style="margin-top:4px">📋 전일 재고 조정하기</button>`;
+    }
+
     document.getElementById('dashMain').innerHTML=html;
   }catch(e){
     document.getElementById('dashMain').innerHTML=`<div class="alert alert-red"><div class="dot dot-red"></div>서버 연결 오류: ${e.message}</div>`;
@@ -767,9 +789,156 @@ function doLogout(){
   document.getElementById('loginBtn').textContent='로그인';
 }
 
+
+// ══════════════════════
+// 재고 조정 (본사 전용)
+// ══════════════════════
+let adjData = {};
+
+function openAdjModal(){
+  // 최근 7일 날짜 옵션 생성
+  const sel = document.getElementById('adjDate');
+  sel.innerHTML = '<option value="">날짜 선택...</option>';
+  for(let i=1;i<=7;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const iso=d.toISOString().split('T')[0];
+    const label=`${d.getMonth()+1}/${d.getDate()} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
+    sel.innerHTML+=`<option value="${iso}">${iso} ${label}</option>`;
+  }
+  document.getElementById('adjRows').innerHTML='<div style="text-align:center;padding:20px;color:#666;font-size:13px">날짜를 선택해 주세요</div>';
+  document.getElementById('adjModalBg').classList.add('show');
+}
+
+function closeAdjModal(e){if(e.target===document.getElementById('adjModalBg'))closeAdjModalDirect();}
+function closeAdjModalDirect(){document.getElementById('adjModalBg').classList.remove('show');}
+
+async function loadAdjData(){
+  const date = document.getElementById('adjDate').value;
+  if(!date) return;
+  const ITEMS = loadItems();
+  const rows = document.getElementById('adjRows');
+  rows.innerHTML='<div class="loading-box"><div class="spinner"></div>불러오는 중...</div>';
+  try{
+    const stockRows = await sbGet('stocks',`date=eq.${date}&select=item_id,item_name,remain_qty,consumed_qty`);
+    const stockMap={};stockRows.forEach(r=>{stockMap[r.item_id]=r;});
+    adjData={};
+    let html='';
+    ITEMS.forEach(it=>{
+      const row=stockMap[it.id];
+      const remain=row?row.remain_qty:null;
+      const consumed=row?row.consumed_qty:null;
+      adjData[it.id]={remain,consumed};
+      const diff=0;
+      html+=`<div class="adj-item">
+        <div class="adj-top">
+          <span class="adj-name">${it.name}</span>
+          <span style="font-size:11px;color:var(--gray-600)">${it.unit}</span>
+        </div>
+        <div class="adj-row">
+          <div>
+            <div class="adj-label">유통사 입력값</div>
+            <div class="adj-val">${remain!==null?remain+'박스':'미입력'}</div>
+          </div>
+          <div>
+            <div class="adj-label">소진량</div>
+            <div class="adj-val">${consumed!==null?consumed+'박스':'—'}</div>
+          </div>
+          <div>
+            <div class="adj-label">본사 수정값</div>
+            <input class="qty-input" type="number" inputmode="numeric"
+              placeholder="${remain!==null?remain:0}"
+              id="adj-${it.id}" value="${remain!==null?remain:''}"
+              oninput="previewAdjDiff('${it.id}',${remain!==null?remain:0})">
+          </div>
+        </div>
+        <div id="adjdiff-${it.id}"></div>
+      </div>`;
+    });
+    rows.innerHTML=html||'<div style="text-align:center;padding:20px;color:#666;font-size:13px">해당 날짜 데이터가 없어요</div>';
+  }catch(e){
+    rows.innerHTML=`<div style="color:var(--red);font-size:13px;padding:10px">오류: ${e.message}</div>`;
+  }
+}
+
+function previewAdjDiff(id, original){
+  const el=document.getElementById('adj-'+id);
+  const diffEl=document.getElementById('adjdiff-'+id);
+  if(!el||!diffEl) return;
+  if(el.value===''){diffEl.innerHTML='';return;}
+  const newVal=parseInt(el.value)||0;
+  const diff=newVal-original;
+  if(diff===0){diffEl.innerHTML='<span class="diff-chip diff-zero">변경 없음</span>';return;}
+  diffEl.innerHTML=`<span class="diff-chip ${diff>0?'diff-plus':'diff-minus'}">${diff>0?'+':''}${diff}박스 조정</span>`;
+}
+
+async function saveAdjustment(){
+  const date=document.getElementById('adjDate').value;
+  if(!date){alert('날짜를 선택해 주세요!');return;}
+  const ITEMS=loadItems();
+  const btn=document.getElementById('adjSaveBtn');
+  btn.disabled=true;btn.textContent='저장 중...';
+
+  try{
+    // 전일 재고 가져오기 (소진량 재계산용)
+    const yesterday=new Date(date);yesterday.setDate(yesterday.getDate()-1);
+    const yISO=yesterday.toISOString().split('T')[0];
+    const month=date.slice(0,7);
+    const [prevRows,ibRows]=await Promise.all([
+      sbGet('stocks',`date=eq.${yISO}&select=item_id,remain_qty`),
+      sbGet('inbound',`month=eq.${month}&select=item_id,qty`)
+    ]);
+    const prevMap={};prevRows.forEach(r=>{prevMap[r.item_id]=r.remain_qty;});
+    const ibMap={};ibRows.forEach(r=>{ibMap[r.item_id]=r.qty;});
+
+    // 수정된 값으로 업데이트
+    const updates=[];
+    ITEMS.forEach(it=>{
+      const el=document.getElementById('adj-'+it.id);
+      if(!el||el.value==='') return;
+      const newRemain=parseInt(el.value)||0;
+      const prev=prevMap[it.id]!==undefined?prevMap[it.id]:0;
+      const ib=ibMap[it.id]||0;
+      const theory=prev+ib;
+      const newConsumed=theory-newRemain;
+      updates.push({item_id:it.id, remain_qty:newRemain, consumed_qty:newConsumed});
+    });
+
+    // 각 품목 업데이트
+    for(const u of updates){
+      await fetch(`${SB_URL}/rest/v1/stocks?date=eq.${date}&item_id=eq.${u.item_id}`,{
+        method:'PATCH',
+        headers:{...getHeaders(),'Prefer':'return=representation'},
+        body:JSON.stringify({remain_qty:u.remain_qty, consumed_qty:u.consumed_qty, submitted_by:'본사조정'})
+      });
+    }
+
+    alert(`${date} 재고 조정 완료! 소진량이 재계산됐어요 ✓`);
+    closeAdjModalDirect();
+    if(document.getElementById('sec-dash').classList.contains('on')) renderDash();
+  }catch(e){
+    alert('저장 오류: '+e.message);
+  }finally{
+    btn.disabled=false;btn.textContent='저장 및 소진량 재계산';
+  }
+}
+
 // ── 초기 실행 ──
 // 로그인 화면만 먼저 보여줌
 </script>
+
+<!-- 재고 조정 모달 (본사 전용) -->
+<div class="modal-bg" id="adjModalBg" onclick="closeAdjModal(event)">
+  <div class="modal" style="max-height:85vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeAdjModalDirect()">✕</button>
+    <div class="modal-title">📋 전일 재고 조정</div>
+    <div class="adj-banner">유통사 입력값이 잘못됐을 때 본사에서 직접 수정해요.<br>저장하면 소진량이 자동으로 재계산돼요.</div>
+    <div class="modal-label">조정할 날짜 선택</div>
+    <select class="date-select" id="adjDate" onchange="loadAdjData()"></select>
+    <div id="adjRows"><div style="text-align:center;padding:20px;color:#666;font-size:13px">날짜를 선택해 주세요</div></div>
+    <button class="btn-main" id="adjSaveBtn" onclick="saveAdjustment()">저장 및 소진량 재계산</button>
+  </div>
+</div>
+
 </div><!-- /appBody -->
 </body>
 </html>
