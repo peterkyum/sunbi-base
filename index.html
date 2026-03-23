@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="선비칼국수">
+<title>선비칼국수 재고관리</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --green:#2D6A1F;--green-light:#EAF3DE;--green-mid:#639922;
+  --amber:#854F0B;--amber-light:#FAEEDA;
+  --red:#A32D2D;--red-light:#FCEBEB;
+  --blue:#0C447C;--blue-light:#E6F1FB;
+  --gray-900:#1a1a1a;--gray-600:#666;--gray-300:#ccc;--gray-100:#f5f5f3;
+  --white:#fff;--border:rgba(0,0,0,0.1);
+}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(--gray-900);min-height:100vh;padding-bottom:90px}
+
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.logo{width:36px;height:36px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--green-light);font-size:18px;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:700}
+.topbar-date{font-size:11px;color:var(--gray-600);margin-top:1px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--gray-300);margin-left:auto;flex-shrink:0}
+.sync-dot.ok{background:var(--green-mid)}
+.sync-dot.err{background:var(--red)}
+
+.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr 1fr;z-index:100}
+.tab{border:none;background:transparent;padding:8px 2px 13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--gray-300);font-size:9px;font-family:'Noto Sans KR',sans-serif;transition:color 0.15s}
+.tab.on{color:var(--green);font-weight:700}
+.tab-icon{font-size:20px}
+
+.sec{display:none;padding:16px}
+.sec.on{display:block}
+
+.card{background:var(--white);border-radius:14px;border:1px solid var(--border);padding:16px;margin-bottom:12px}
+.card-title{font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px}
+
+.alert{display:flex;align-items:flex-start;gap:8px;padding:10px 14px;border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.5}
+.alert-red{background:var(--red-light);color:var(--red)}
+.alert-amber{background:var(--amber-light);color:var(--amber)}
+.alert-green{background:var(--green-light);color:var(--green)}
+.alert-blue{background:var(--blue-light);color:var(--blue)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.dot-red{background:var(--red)}.dot-amber{background:var(--amber)}.dot-green{background:var(--green)}.dot-blue{background:var(--blue)}
+
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.metric{background:var(--gray-100);border-radius:10px;padding:14px}
+.metric-label{font-size:11px;color:var(--gray-600);margin-bottom:5px}
+.metric-val{font-size:26px;font-weight:700;line-height:1}
+.metric-unit{font-size:11px;color:var(--gray-600);margin-top:3px}
+
+.bar-row{display:grid;grid-template-columns:90px 1fr 36px;align-items:center;gap:8px;margin-bottom:10px}
+.bar-name{font-size:11px;color:var(--gray-600);line-height:1.3}
+.bar-bg{height:7px;background:var(--gray-100);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.5s ease}
+.bar-pct{font-size:11px;color:var(--gray-600);text-align:right}
+
+.input-item{background:var(--white);border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:8px}
+.input-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.item-name{font-size:14px;font-weight:700}
+.item-info{font-size:11px;color:var(--gray-600);text-align:right;line-height:1.5}
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.input-label{font-size:11px;color:var(--gray-600);margin-bottom:4px;font-weight:700}
+.input-val{font-size:13px;color:var(--gray-600);background:var(--gray-100);border-radius:7px;padding:8px 10px}
+.qty-input{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:16px;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);background:var(--white);text-align:right;-webkit-appearance:none}
+.qty-input:focus{outline:none;border-color:var(--green)}
+.consumed-preview{margin-top:8px;padding:8px 10px;border-radius:7px;font-size:12px;font-weight:700;text-align:center;background:var(--green-light);color:var(--green)}
+
+.btn-main{width:100%;padding:15px;background:var(--green);color:var(--white);border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;transition:opacity 0.15s}
+.btn-main:active{opacity:0.8}
+.btn-main:disabled{background:var(--gray-300);cursor:not-allowed}
+.btn-sub{width:100%;padding:12px;background:var(--blue);color:var(--white);border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:8px}
+
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;font-size:10px;font-weight:700;color:var(--gray-600);padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tbl td{padding:9px 8px;border-bottom:1px solid var(--border);color:var(--gray-900);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-amber{background:var(--amber-light);color:var(--amber)}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-blue{background:var(--blue-light);color:var(--blue)}
+
+.order-item{background:var(--white);border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:8px}
+.order-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.order-name{font-size:14px;font-weight:700}
+.order-qty{font-size:22px;font-weight:700;color:var(--green)}
+.order-detail{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.od-label{font-size:10px;color:var(--gray-600);margin-bottom:2px}
+.od-val{font-size:13px;font-weight:700}
+
+.inbound-item{background:var(--white);border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:8px}
+.inbound-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-end}
+.modal-bg.show{display:flex}
+.modal{background:var(--white);border-radius:20px 20px 0 0;padding:20px 20px 40px;width:100%}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+.modal-input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;font-size:15px;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);margin-bottom:10px}
+.modal-input:focus{outline:none;border-color:var(--green)}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.modal-label{font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:5px}
+.modal-close{float:right;background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--gray-600)}
+
+.success-screen{text-align:center;padding:40px 20px}
+.success-circle{width:64px;height:64px;background:var(--green-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:28px}
+.success-title{font-size:18px;font-weight:700;margin-bottom:6px}
+.success-sub{font-size:13px;color:var(--gray-600);line-height:1.6}
+.btn-ghost{border:1.5px solid var(--border);background:transparent;border-radius:10px;padding:10px 24px;font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);margin-top:16px}
+
+.loading-box{text-align:center;padding:40px 20px;color:var(--gray-600);font-size:13px}
+.spinner{width:28px;height:28px;border:3px solid var(--gray-300);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.month-select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);background:var(--white);margin-bottom:12px}
+.month-select:focus{outline:none;border-color:var(--green)}
+.section-label{font-size:12px;font-weight:700;color:var(--gray-600);margin:16px 0 8px;padding:0 2px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">麵</div>
+  <div>
+    <div class="topbar-title">선비칼국수 재고관리</div>
+    <div class="topbar-date" id="todayStr"></div>
+  </div>
+  <div class="sync-dot" id="syncDot" title="서버 연결 상태"></div>
+</div>
+
+<div class="sec on" id="sec-input"><div id="inputMain"><div class="loading-box"><div class="spinner"></div>불러오는 중...</div></div></div>
+<div class="sec" id="sec-dash"><div id="dashMain"></div></div>
+<div class="sec" id="sec-order"><div id="orderMain"></div></div>
+<div class="sec" id="sec-inbound"><div id="inboundMain"></div></div>
+
+<nav class="tabs">
+  <button class="tab on" onclick="go('input',this)"><span class="tab-icon">📦</span>재고입력</button>
+  <button class="tab" onclick="go('dash',this)"><span class="tab-icon">📊</span>대시보드</button>
+  <button class="tab" onclick="go('order',this)"><span class="tab-icon">🛒</span>자동발주</button>
+  <button class="tab" onclick="go('inbound',this)"><span class="tab-icon">🚚</span>입고관리</button>
+</nav>
+
+<!-- 품목 추가 모달 -->
+<div class="modal-bg" id="modalBg" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <div class="modal-title">새 품목 추가</div>
+    <div class="modal-label">품목명</div>
+    <input class="modal-input" id="newName" placeholder="예: 비빔장소스">
+    <div class="modal-row">
+      <div><div class="modal-label">단위</div><input class="modal-input" id="newUnit" placeholder="kg, L, 개"></div>
+      <div><div class="modal-label">월 평균 사용량</div><input class="modal-input" id="newAvg" type="number" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="modal-label">이번 달 입고량</div>
+    <input class="modal-input" id="newInbound" type="number" inputmode="numeric" placeholder="0">
+    <button class="btn-main" onclick="addItem()">추가하기</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// Supabase 연결 설정
+// ══════════════════════════════════════
+const SB_URL = 'https://nhgkzquqbxbzwejzcdft.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oZ2t6cXVxYnhiendlanpjZGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjc5NzgsImV4cCI6MjA4OTgwMzk3OH0.K8CIaX3nPQ9EzBvhjpMol8Ng9i-7iM71HxboAXhx0QM';
+const HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
+
+async function sbGet(table, query=''){
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {headers:{...HEADERS,'Prefer':'return=representation'}});
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbInsert(table, data){
+  const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method:'POST', headers:{...HEADERS,'Prefer':'return=representation'},
+    body: JSON.stringify(data)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbUpsert(table, data, onConflict){
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
+    method:'POST', headers:{...HEADERS,'Prefer':'resolution=merge-duplicates,return=representation'},
+    body: JSON.stringify(data)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbDelete(table, query){
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {method:'DELETE', headers:HEADERS});
+  if(!res.ok) throw new Error(await res.text());
+}
+
+// 연결 상태 표시
+async function checkConnection(){
+  try{
+    await sbGet('stocks','limit=1');
+    document.getElementById('syncDot').className='sync-dot ok';
+  }catch{
+    document.getElementById('syncDot').className='sync-dot err';
+  }
+}
+
+// ── 기본 품목 데이터 (로컬 fallback) ──
+const DEFAULT_ITEMS = [
+  {id:'bibim',   name:'비빔장소스',     unit:'kg', monthAvg:45},
+  {id:'jang',    name:'장칼국수소스',   unit:'kg', monthAvg:38},
+  {id:'sobaw',   name:'메밀쯔유',       unit:'L',  monthAvg:30},
+  {id:'myulchi', name:'멸치분말스프',   unit:'kg', monthAvg:20},
+  {id:'beef',    name:'소고기육수분말', unit:'kg', monthAvg:25},
+  {id:'yukgae',  name:'육개장소스',     unit:'kg', monthAvg:35},
+  {id:'dak',     name:'닭칼국수농축액', unit:'L',  monthAvg:28},
+  {id:'daksal',  name:'닭가슴살채',     unit:'kg', monthAvg:50},
+  {id:'banjuk',  name:'반죽면대',       unit:'개', monthAvg:200},
+];
+const ITEMS_KEY='sunbi_items';
+const SAFETY=0.15;
+
+function loadItems(){try{const s=JSON.parse(localStorage.getItem(ITEMS_KEY));return s&&s.length>0?s:DEFAULT_ITEMS;}catch{return DEFAULT_ITEMS;}}
+function saveItems(d){localStorage.setItem(ITEMS_KEY,JSON.stringify(d));}
+function todayISO(){return new Date().toISOString().split('T')[0]}
+function thisMonth(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function fmtDate(s){const d=new Date(s);return `${d.getMonth()+1}/${d.getDate()}`}
+function fmtMonth(m){const[y,mo]=m.split('-');return `${y}년 ${parseInt(mo)}월`}
+
+document.getElementById('todayStr').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+
+function go(tab,btn){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('sec-'+tab).classList.add('on');
+  btn.classList.add('on');
+  if(tab==='dash') renderDash();
+  if(tab==='order') renderOrder();
+  if(tab==='inbound') renderInbound();
+}
+
+// ══════════════════════
+// 1. 재고 입력
+// ══════════════════════
+let submitted=false;
+
+async function renderInput(){
+  const ITEMS=loadItems();
+  const today=todayISO();
+  const month=thisMonth();
+
+  // 오늘 이미 입력한 데이터 확인
+  let todayData={};
+  try{
+    const rows=await sbGet('stocks',`date=eq.${today}&select=item_id,remain_qty`);
+    rows.forEach(r=>{todayData[r.item_id]=r.remain_qty;});
+  }catch(e){console.error(e);}
+
+  // 이번달 입고량
+  let inboundData={};
+  try{
+    const rows=await sbGet('inbound',`month=eq.${month}&select=item_id,qty`);
+    rows.forEach(r=>{inboundData[r.item_id]=r.qty;});
+  }catch(e){}
+
+  // 전일 재고
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+  const yISO=yesterday.toISOString().split('T')[0];
+  let prevData={};
+  try{
+    const rows=await sbGet('stocks',`date=eq.${yISO}&select=item_id,remain_qty`);
+    rows.forEach(r=>{prevData[r.item_id]=r.remain_qty;});
+  }catch(e){}
+
+  if(submitted){
+    document.getElementById('inputMain').innerHTML=`
+    <div class="success-screen">
+      <div class="success-circle">✓</div>
+      <div class="success-title">오늘 재고 제출 완료!</div>
+      <div class="success-sub">서버에 저장됐어요.<br>본사에서 실시간으로 확인할 수 있어요 😊</div>
+      <button class="btn-ghost" onclick="resetInput()">다시 입력하기</button>
+    </div>`;
+    return;
+  }
+
+  let html=`<div class="alert alert-amber"><div class="dot dot-amber"></div>오늘 남은 재고를 품목별로 입력하고 제출해 주세요.</div>`;
+
+  ITEMS.forEach(it=>{
+    const prev=prevData[it.id]!==undefined?prevData[it.id]:null;
+    const ib=inboundData[it.id]||0;
+    const theory=prev!==null?prev+ib:ib;
+    const saved=todayData[it.id]!==undefined?todayData[it.id]:'';
+    const consumed=saved!==''?theory-Number(saved):null;
+
+    html+=`<div class="input-item">
+      <div class="input-item-top">
+        <span class="item-name">${it.name}</span>
+        <span class="item-info">${prev!==null?`전일 ${prev}${it.unit}`:'전일 미입력'}<br>입고 +${ib}${it.unit}</span>
+      </div>
+      <div class="input-row">
+        <div>
+          <div class="input-label">이론 재고</div>
+          <div class="input-val">${theory}${it.unit}</div>
+        </div>
+        <div>
+          <div class="input-label">현재 재고 입력</div>
+          <input class="qty-input" type="number" inputmode="numeric" placeholder="0"
+            id="inp-${it.id}" value="${saved}"
+            oninput="previewConsumed('${it.id}',${theory},'${it.unit}')">
+        </div>
+      </div>
+      <div class="consumed-preview" id="prev-${it.id}" style="display:${consumed!==null?'block':'none'}">
+        오늘 소진량: ${consumed!==null?consumed:0}${it.unit}
+      </div>
+    </div>`;
+  });
+
+  html+=`<button class="btn-main" id="submitBtn" onclick="submitStocks()">오늘 재고 제출하기</button>`;
+  document.getElementById('inputMain').innerHTML=html;
+}
+
+function previewConsumed(id,theory,unit){
+  const el=document.getElementById('inp-'+id);
+  const prev=document.getElementById('prev-'+id);
+  if(!el||el.value===''){prev.style.display='none';return;}
+  const consumed=theory-parseInt(el.value||0);
+  prev.style.display='block';
+  prev.textContent=`오늘 소진량: ${consumed}${unit}`;
+  prev.style.color=consumed<0?'#A32D2D':'#2D6A1F';
+  prev.style.background=consumed<0?'#FCEBEB':'#EAF3DE';
+}
+
+async function submitStocks(){
+  const ITEMS=loadItems();
+  const today=todayISO();
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+  const yISO=yesterday.toISOString().split('T')[0];
+  const month=thisMonth();
+  const btn=document.getElementById('submitBtn');
+
+  // 유효성 검사
+  let allFilled=true;
+  ITEMS.forEach(it=>{const el=document.getElementById('inp-'+it.id);if(!el||el.value==='')allFilled=false;});
+  if(!allFilled){alert('모든 품목을 입력해 주세요!');return;}
+
+  btn.disabled=true;btn.textContent='저장 중...';
+
+  try{
+    // 전일 재고 & 입고량 가져오기
+    const [prevRows, ibRows] = await Promise.all([
+      sbGet('stocks',`date=eq.${yISO}&select=item_id,remain_qty`),
+      sbGet('inbound',`month=eq.${month}&select=item_id,qty`)
+    ]);
+    const prevMap={};prevRows.forEach(r=>{prevMap[r.item_id]=r.remain_qty;});
+    const ibMap={};ibRows.forEach(r=>{ibMap[r.item_id]=r.qty;});
+
+    // 기존 오늘 데이터 삭제 후 재삽입
+    await sbDelete('stocks',`date=eq.${today}`);
+
+    const rows=ITEMS.map(it=>{
+      const val=parseInt(document.getElementById('inp-'+it.id).value)||0;
+      const prev=prevMap[it.id]!==undefined?prevMap[it.id]:0;
+      const ib=ibMap[it.id]||0;
+      const theory=prev+ib;
+      return {
+        date:today,
+        item_id:it.id,
+        item_name:it.name,
+        remain_qty:val,
+        consumed_qty:theory-val,
+        submitted_by:'유통사담당자'
+      };
+    });
+
+    await sbInsert('stocks',rows);
+    submitted=true;
+    document.getElementById('syncDot').className='sync-dot ok';
+    renderInput();
+  }catch(e){
+    alert('저장 오류: '+e.message);
+    btn.disabled=false;btn.textContent='오늘 재고 제출하기';
+    document.getElementById('syncDot').className='sync-dot err';
+  }
+}
+
+function resetInput(){submitted=false;renderInput();}
+
+// ══════════════════════
+// 2. 대시보드
+// ══════════════════════
+async function renderDash(){
+  document.getElementById('dashMain').innerHTML='<div class="loading-box"><div class="spinner"></div>불러오는 중...</div>';
+  const ITEMS=loadItems();
+  const today=todayISO();
+  const month=thisMonth();
+
+  try{
+    const [todayRows, ibRows] = await Promise.all([
+      sbGet('stocks',`date=eq.${today}&select=item_id,remain_qty,consumed_qty`),
+      sbGet('inbound',`month=eq.${month}&select=item_id,qty`)
+    ]);
+    const todayMap={};todayRows.forEach(r=>{todayMap[r.item_id]=r;});
+    const ibMap={};ibRows.forEach(r=>{ibMap[r.item_id]=r.qty;});
+
+    const statuses=ITEMS.map(it=>{
+      const row=todayMap[it.id];
+      const current=row?row.remain_qty:null;
+      const consumed=row?row.consumed_qty:null;
+      const ratio=current!==null&&it.monthAvg>0?Math.round(current/it.monthAvg*100):null;
+      return {...it,current,consumed,ratio,danger:ratio!==null&&ratio<15,warning:ratio!==null&&ratio<25&&!(ratio<15)};
+    });
+
+    const totalConsumed=statuses.reduce((a,s)=>a+(s.consumed||0),0);
+    const dangerCount=statuses.filter(s=>s.danger).length;
+    const warningCount=statuses.filter(s=>s.warning).length;
+
+    let html='';
+    statuses.filter(s=>s.danger).forEach(s=>{html+=`<div class="alert alert-red"><div class="dot dot-red"></div>${s.name} 재고 ${s.current}${s.unit} — 평균 대비 ${s.ratio}% 남음. 즉시 확인!</div>`;});
+    statuses.filter(s=>s.warning).forEach(s=>{html+=`<div class="alert alert-amber"><div class="dot dot-amber"></div>${s.name} 재고 ${s.current}${s.unit} — 평균 대비 ${s.ratio}% 남음.</div>`;});
+    if(!dangerCount&&!warningCount) html+=`<div class="alert alert-green"><div class="dot dot-green"></div>모든 품목 재고 정상입니다 👍</div>`;
+
+    html+=`<div class="metric-grid">
+      <div class="metric"><div class="metric-label">오늘 총 소진</div><div class="metric-val">${totalConsumed}</div><div class="metric-unit">합산 수량</div></div>
+      <div class="metric"><div class="metric-label">위험 품목</div><div class="metric-val" style="color:${dangerCount>0?'var(--red)':'inherit'}">${dangerCount}</div><div class="metric-unit">즉시 확인</div></div>
+    </div>`;
+
+    html+=`<div class="card"><div class="card-title">품목별 잔여율</div>`;
+    statuses.forEach(s=>{
+      const pct=Math.min(100,s.ratio??0);
+      const color=pct<15?'#E24B4A':pct<25?'#EF9F27':'#639922';
+      html+=`<div class="bar-row"><span class="bar-name">${s.name}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><span class="bar-pct">${s.current!==null?pct+'%':'—'}</span></div>`;
+    });
+    html+=`</div>`;
+
+    html+=`<div class="card"><div class="card-title">전체 현황</div><div style="overflow-x:auto"><table class="tbl">
+      <thead><tr><th>품목</th><th>현재</th><th>소진</th><th>상태</th></tr></thead><tbody>`;
+    statuses.forEach(s=>{
+      const badge=s.danger?'<span class="badge badge-red">위험</span>':s.warning?'<span class="badge badge-amber">주의</span>':'<span class="badge badge-green">정상</span>';
+      html+=`<tr><td style="font-weight:700">${s.name}</td><td>${s.current!==null?s.current+s.unit:'미입력'}</td><td>${s.consumed!==null?s.consumed+s.unit:'—'}</td><td>${badge}</td></tr>`;
+    });
+    html+=`</tbody></table></div></div>`;
+
+    // 최근 5일 기록
+    const history=await sbGet('stocks',`select=date,item_id,remain_qty&order=date.desc&limit=${ITEMS.length*5}`);
+    const days=[...new Set(history.map(r=>r.date))].slice(0,5);
+    if(days.length>0){
+      const histMap={};
+      history.forEach(r=>{if(!histMap[r.date])histMap[r.date]={};histMap[r.date][r.item_id]=r.remain_qty;});
+      html+=`<div class="card"><div class="card-title">최근 입력 기록</div><div style="overflow-x:auto"><table class="tbl">
+        <thead><tr><th>날짜</th>${ITEMS.map(it=>`<th>${it.name.slice(0,3)}</th>`).join('')}</tr></thead><tbody>`;
+      days.forEach(d=>{
+        html+=`<tr><td style="font-weight:700;white-space:nowrap">${fmtDate(d)}</td>`;
+        ITEMS.forEach(it=>{html+=`<td>${histMap[d]?.[it.id]!==undefined?histMap[d][it.id]:'—'}</td>`;});
+        html+=`</tr>`;
+      });
+      html+=`</tbody></table></div></div>`;
+    }
+
+    document.getElementById('dashMain').innerHTML=html;
+  }catch(e){
+    document.getElementById('dashMain').innerHTML=`<div class="alert alert-red"><div class="dot dot-red"></div>서버 연결 오류: ${e.message}</div>`;
+  }
+}
+
+// ══════════════════════
+// 3. 자동 발주
+// ══════════════════════
+async function renderOrder(){
+  document.getElementById('orderMain').innerHTML='<div class="loading-box"><div class="spinner"></div>불러오는 중...</div>';
+  const ITEMS=loadItems();
+  const today=todayISO();
+  const month=thisMonth();
+
+  try{
+    const [todayRows, orderRows] = await Promise.all([
+      sbGet('stocks',`date=eq.${today}&select=item_id,remain_qty`),
+      sbGet('orders',`select=order_date,item_count&order=order_date.desc&limit=5`)
+    ]);
+    const todayMap={};todayRows.forEach(r=>{todayMap[r.item_id]=r.remain_qty;});
+
+    let html=`<div class="alert alert-amber"><div class="dot dot-amber"></div>아래 추천 발주량을 확인하고 확정해 주세요. (안전재고 15% 포함)</div>`;
+
+    ITEMS.forEach(it=>{
+      const current=todayMap[it.id]!==undefined?todayMap[it.id]:null;
+      const rec=Math.max(0,Math.ceil(it.monthAvg*(1+SAFETY)-(current??0)));
+      const ratio=current!==null&&it.monthAvg>0?Math.round(current/it.monthAvg*100):null;
+      const danger=ratio!==null&&ratio<15;
+      const warning=ratio!==null&&ratio<25&&!danger;
+      const color=danger?'var(--red)':warning?'var(--amber)':'var(--green)';
+      html+=`<div class="order-item">
+        <div class="order-top"><span class="order-name">${it.name}</span><span class="order-qty" style="color:${color}">${rec}${it.unit}</span></div>
+        <div style="font-size:11px;color:var(--gray-600)">이번 달 추천 발주량</div>
+        <div class="order-detail">
+          <div><div class="od-label">월 평균</div><div class="od-val">${it.monthAvg}${it.unit}</div></div>
+          <div><div class="od-label">현재 재고</div><div class="od-val">${current!==null?current+it.unit:'미입력'}</div></div>
+          <div><div class="od-label">안전재고</div><div class="od-val">+15%</div></div>
+        </div>
+      </div>`;
+    });
+
+    html+=`<button class="btn-main" id="orderBtn" onclick="confirmOrder()">발주 확정하기</button>`;
+
+    if(orderRows.length>0){
+      html+=`<div class="card" style="margin-top:12px"><div class="card-title">발주 히스토리</div><table class="tbl">
+        <thead><tr><th>발주일</th><th>품목 수</th><th>상태</th></tr></thead><tbody>`;
+      orderRows.forEach(o=>{html+=`<tr><td>${fmtDate(o.order_date)}</td><td>${o.item_count}개</td><td><span class="badge badge-green">완료</span></td></tr>`;});
+      html+=`</tbody></table></div>`;
+    }
+
+    document.getElementById('orderMain').innerHTML=html;
+  }catch(e){
+    document.getElementById('orderMain').innerHTML=`<div class="alert alert-red"><div class="dot dot-red"></div>서버 연결 오류: ${e.message}</div>`;
+  }
+}
+
+async function confirmOrder(){
+  const ITEMS=loadItems();
+  const btn=document.getElementById('orderBtn');
+  btn.disabled=true;btn.textContent='저장 중...';
+  try{
+    await sbInsert('orders',{order_date:todayISO(),item_count:ITEMS.length});
+    alert('발주가 확정됐어요!');
+    renderOrder();
+  }catch(e){
+    alert('저장 오류: '+e.message);
+    btn.disabled=false;btn.textContent='발주 확정하기';
+  }
+}
+
+// ══════════════════════
+// 4. 입고 관리
+// ══════════════════════
+let selectedMonth=thisMonth();
+
+async function renderInbound(){
+  document.getElementById('inboundMain').innerHTML='<div class="loading-box"><div class="spinner"></div>불러오는 중...</div>';
+  const ITEMS=loadItems();
+
+  const months=[];
+  for(let i=0;i<6;i++){const d=new Date();d.setMonth(d.getMonth()-i);months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);}
+
+  try{
+    const ibRows=await sbGet('inbound',`month=eq.${selectedMonth}&select=item_id,qty`);
+    const ibMap={};ibRows.forEach(r=>{ibMap[r.item_id]=r.qty;});
+
+    let html=`<div class="card-title" style="padding:2px 0 0">월별 입고량 관리</div>
+    <select class="month-select" onchange="changeMonth(this.value)">
+      ${months.map(m=>`<option value="${m}" ${m===selectedMonth?'selected':''}>${fmtMonth(m)}</option>`).join('')}
+    </select>`;
+
+    ITEMS.forEach(it=>{
+      const val=ibMap[it.id]!==undefined?ibMap[it.id]:'';
+      html+=`<div class="inbound-item">
+        <div class="inbound-top">
+          <span class="item-name" style="font-size:14px;font-weight:700">${it.name}</span>
+          <span class="badge badge-blue">${val!==''?val+it.unit:'미입력'}</span>
+        </div>
+        <div class="input-row">
+          <div><div class="input-label">월 평균 사용량</div><div class="input-val">${it.monthAvg}${it.unit}</div></div>
+          <div><div class="input-label">${fmtMonth(selectedMonth)} 입고량</div>
+            <input class="qty-input" type="number" inputmode="numeric" placeholder="0" id="ib-${it.id}" value="${val}">
+          </div>
+        </div>
+      </div>`;
+    });
+
+    html+=`<button class="btn-main" onclick="saveInboundMonth()">입고량 저장하기</button>`;
+    html+=`<button class="btn-sub" onclick="openModal()">+ 새 품목 추가하기</button>`;
+
+    html+=`<div class="section-label">등록된 품목 목록 (${ITEMS.length}개)</div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>품목명</th><th>단위</th><th>월평균</th><th></th></tr></thead><tbody>`;
+    ITEMS.forEach((it,idx)=>{
+      html+=`<tr>
+        <td style="font-weight:700">${it.name}</td><td>${it.unit}</td><td>${it.monthAvg}</td>
+        <td><button onclick="deleteItem(${idx})" style="border:none;background:var(--red-light);color:var(--red);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">삭제</button></td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div>`;
+
+    document.getElementById('inboundMain').innerHTML=html;
+  }catch(e){
+    document.getElementById('inboundMain').innerHTML=`<div class="alert alert-red"><div class="dot dot-red"></div>서버 연결 오류: ${e.message}</div>`;
+  }
+}
+
+function changeMonth(m){selectedMonth=m;renderInbound();}
+
+async function saveInboundMonth(){
+  const ITEMS=loadItems();
+  const btn=document.querySelector('#inboundMain .btn-main');
+  if(btn){btn.disabled=true;btn.textContent='저장 중...';}
+  try{
+    const rows=[];
+    ITEMS.forEach(it=>{
+      const el=document.getElementById('ib-'+it.id);
+      if(el&&el.value!=='') rows.push({month:selectedMonth,item_id:it.id,qty:parseInt(el.value)||0});
+    });
+    // 기존 삭제 후 재삽입
+    await sbDelete('inbound',`month=eq.${selectedMonth}`);
+    if(rows.length>0) await sbInsert('inbound',rows);
+    alert(`${fmtMonth(selectedMonth)} 입고량이 저장됐어요!`);
+    renderInbound();
+  }catch(e){
+    alert('저장 오류: '+e.message);
+    if(btn){btn.disabled=false;btn.textContent='입고량 저장하기';}
+  }
+}
+
+function deleteItem(idx){
+  if(!confirm('이 품목을 삭제할까요?'))return;
+  const items=loadItems();items.splice(idx,1);saveItems(items);renderInbound();
+}
+
+function openModal(){document.getElementById('modalBg').classList.add('show');document.getElementById('newName').focus();}
+function closeModal(e){if(e.target===document.getElementById('modalBg'))closeModalDirect();}
+function closeModalDirect(){
+  document.getElementById('modalBg').classList.remove('show');
+  ['newName','newUnit','newAvg','newInbound'].forEach(id=>{document.getElementById(id).value='';});
+}
+function addItem(){
+  const name=document.getElementById('newName').value.trim();
+  const unit=document.getElementById('newUnit').value.trim()||'개';
+  const avg=parseInt(document.getElementById('newAvg').value)||0;
+  const ib=parseInt(document.getElementById('newInbound').value)||0;
+  if(!name){alert('품목명을 입력해 주세요!');return;}
+  const items=loadItems();
+  const id='item_'+Date.now();
+  items.push({id,name,unit,monthAvg:avg});
+  saveItems(items);
+  closeModalDirect();
+  // 이번달 입고량 저장
+  if(ib>0){
+    sbInsert('inbound',[{month:selectedMonth,item_id:id,qty:ib}]).catch(console.error);
+  }
+  renderInbound();
+}
+
+// ── 초기 실행 ──
+checkConnection();
+renderInput();
+</script>
+</body>
+</html>
