@@ -503,6 +503,27 @@ const EMAILJS_TEMPLATE = 'YOUR_TEMPLATE_ID';
 const EMAILJS_PUBLIC   = 'YOUR_PUBLIC_KEY';
 const NOTIFY_EMAIL     = 'your@email.com';
 
+async function sendToGoogleSheet(rows, today, dailyInbound){
+  if(!GOOGLE_SCRIPT_URL) return;
+  try{
+    const payload={
+      date: today,
+      rows: rows.map(r=>({
+        item_name:  r.item_name,
+        remain_qty: r.remain_qty,
+        consumed_qty: r.consumed_qty,
+        inbound_qty: (dailyInbound&&dailyInbound[r.item_id])||0
+      }))
+    };
+    await fetch(GOOGLE_SCRIPT_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify(payload)
+    });
+    console.log('✅ 구글 시트 기록 완료');
+  }catch(e){ console.warn('구글 시트 전송 실패:', e); }
+}
+
 async function sendNotificationEmail(rows, today){
   if(!EMAILJS_SERVICE||EMAILJS_SERVICE==='YOUR_SERVICE_ID') return;
   try{
