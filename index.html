@@ -80,10 +80,13 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
 .item-name{font-size:14px;font-weight:700}
 .item-info{font-size:11px;color:var(--gray-600);text-align:right;line-height:1.5}
 .input-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.input-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .input-label{font-size:11px;color:var(--gray-600);margin-bottom:4px;font-weight:700}
 .input-val{font-size:13px;color:var(--gray-600);background:var(--gray-100);border-radius:7px;padding:8px 10px}
-.qty-input{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:16px;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);background:var(--white);text-align:right;-webkit-appearance:none}
+.qty-input{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:16px;font-family:'Noto Sans KR',sans-serif;color:var(--gray-900);background:var(--white);text-align:right;-webkit-appearance:none;box-sizing:border-box}
 .qty-input:focus{outline:none;border-color:var(--green)}
+.qty-inbound{border-color:var(--blue)!important}
+.qty-inbound:focus{border-color:var(--blue)!important;box-shadow:0 0 0 2px rgba(74,144,226,0.15)}
 .consumed-preview{margin-top:8px;padding:8px 10px;border-radius:7px;font-size:12px;font-weight:700;text-align:center;background:var(--green-light);color:var(--green)}
 
 .btn-main{width:100%;padding:15px;background:var(--green);color:var(--white);border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;transition:opacity 0.15s}
@@ -401,20 +404,24 @@ async function renderInput(){
     return;
   }
 
-  let html=`<div class="alert alert-amber"><div class="dot dot-amber"></div>오늘 남은 재고를 품목별로 입력하고 제출해 주세요.</div>`;
+  let html=`<div class="alert alert-amber"><div class="dot dot-amber"></div>오늘 남은 재고와 당일 입고 수량을 품목별로 입력해 주세요.</div>`;
 
   ITEMS.forEach(it=>{
     // resetMode(다시 입력하기)일 때는 오늘 제출값을 전날 최종재고로 사용
     const prevBase = resetMode && todayData[it.id]!==undefined
       ? todayData[it.id]
       : (prevData[it.id]!==undefined ? prevData[it.id] : null);
-    const ib=inboundData[it.id]||0;
-    const theory=prevBase!==null?prevBase+ib:ib;
-    // 다시 입력하기 모드에서는 입력칸 비움, 아니면 오늘 저장된 값 복원
-    const saved=(!resetMode && todayData[it.id]!==undefined)?todayData[it.id]:'';
-    const consumed=saved!==''?theory-Number(saved):null;
+    const savedRemain=(!resetMode && todayData[it.id]!==undefined)?todayData[it.id]:'';
+    // 당일 입고: resetMode가 아니고 오늘 ibData가 있으면 보여줌 (편의용)
+    const savedIb='';
 
-    // 우측 상단 info: resetMode엔 오늘 제출값 표시, 아니면 진짜 전일 데이터
+    // 전날 최종재고 = 어제 remain_qty (입고 미포함, 당일 입고는 사용자가 직접 입력)
+    const prevStock=prevBase!==null?prevBase:null;
+    // theory: 전날 + 당일 입고 -> 실시간 계산은 JS로 (초기값만)
+    const initIb=0;
+    const initTheory=prevStock!==null?prevStock+initIb:initIb;
+    const consumed=savedRemain!==''?(initTheory-Number(savedRemain)):null;
+
     const prevLabel = resetMode && todayData[it.id]!==undefined
       ? `오늘 제출 ${todayData[it.id]}${it.unit}`
       : (prevData[it.id]!==undefined ? `전일 ${prevData[it.id]}${it.unit}` : '전일 미입력');
@@ -422,18 +429,24 @@ async function renderInput(){
     html+=`<div class="input-item">
       <div class="input-item-top">
         <span class="item-name">${it.name}</span>
-        <span class="item-info">${prevLabel}<br>입고 +${ib}${it.unit}</span>
+        <span class="item-info">${prevLabel}</span>
       </div>
-      <div class="input-row">
+      <div class="input-row-3">
         <div>
           <div class="input-label">전날 최종재고</div>
-          <div class="input-val">${theory}${it.unit}</div>
+          <div class="input-val">${prevStock!==null?prevStock+it.unit:'미입력'}</div>
+        </div>
+        <div>
+          <div class="input-label">당일 입고 수량</div>
+          <input class="qty-input qty-inbound" type="number" inputmode="numeric" placeholder="0"
+            id="inp-ib-${it.id}" value="${savedIb}"
+            oninput="previewConsumed3('${it.id}',${prevStock??0},'${it.unit}')">
         </div>
         <div>
           <div class="input-label">현재 재고 입력</div>
           <input class="qty-input" type="number" inputmode="numeric" placeholder="0"
-            id="inp-${it.id}" value="${saved}"
-            oninput="previewConsumed('${it.id}',${theory},'${it.unit}')">
+            id="inp-${it.id}" value="${savedRemain}"
+            oninput="previewConsumed3('${it.id}',${prevStock??0},'${it.unit}')">
         </div>
       </div>
       <div class="consumed-preview" id="prev-${it.id}" style="display:${consumed!==null?'block':'none'}">
@@ -444,7 +457,7 @@ async function renderInput(){
 
   html+=`<button class="btn-main" id="submitBtn" onclick="submitStocks()">오늘 재고 제출하기</button>`;
   document.getElementById('inputMain').innerHTML=html;
-  resetMode=false; // 렌더 완료 후 플래그 초기화
+  resetMode=false;
 }
 
 function previewConsumed(id,theory,unit){
@@ -458,13 +471,55 @@ function previewConsumed(id,theory,unit){
   prev.style.background=consumed<0?'#FCEBEB':'#EAF3DE';
 }
 
-// ── 이메일 알림 설정 (emailjs.com 가입 후 아래 4줄 교체) ──
+// 3단 레이아웃 실시간 소진량 계산
+function previewConsumed3(id, prevStock, unit){
+  const elIb=document.getElementById('inp-ib-'+id);
+  const elRemain=document.getElementById('inp-'+id);
+  const prevEl=document.getElementById('prev-'+id);
+  const ib=elIb&&elIb.value!==''?parseInt(elIb.value)||0:0;
+  const theory=prevStock+ib;
+  if(!elRemain||elRemain.value===''){if(prevEl)prevEl.style.display='none';return;}
+  const consumed=theory-parseInt(elRemain.value||0);
+  prevEl.style.display='block';
+  prevEl.textContent=`오늘 소진량: ${consumed}${unit}  (전날${prevStock}+입고${ib}-현재재고)`;
+  prevEl.style.color=consumed<0?'#A32D2D':'#2D6A1F';
+  prevEl.style.background=consumed<0?'#FCEBEB':'#EAF3DE';
+}
+
+// ── 텔레그램 봇 알림 설정 ──
+// 아래 두 값을 텔레그램 설정 후 입력하세요
+const TELEGRAM_BOT_TOKEN = '8624851417:AAFohaEN56XVSJ5y67c94z88gSBcOPtBOoE';
+const TELEGRAM_CHAT_ID   = '8774713020';
+
+async function sendTelegramNotification(rows, today, dailyInbound){
+  if(!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN==='YOUR_BOT_TOKEN') return;
+  try{
+    const d = new Date(today+'T00:00:00');
+    const dateStr = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+    const lines = rows.map(r=>{
+      const ib = (dailyInbound&&dailyInbound[r.item_id])||0;
+      return `• <b>${r.item_name}</b>\n  현재재고: ${r.remain_qty}박스 | 소진: ${r.consumed_qty}박스${ib>0?` | 입고: +${ib}박스`:''}`;
+    }).join('\n');
+    const text = `📦 <b>[선비칼국수] ${dateStr} 재고 입력 완료</b>\n\n${lines}\n\n✅ 유통사 담당자가 오늘 재고를 제출했어요.`;
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:TELEGRAM_CHAT_ID,text,parse_mode:'HTML'})
+    });
+    const json = await res.json();
+    if(json.ok){ console.log('✅ 텔레그램 알림 전송 성공'); }
+    else{ console.error('❌ 텔레그램 오류:', JSON.stringify(json)); }
+  }catch(e){ console.error('❌ 텔레그램 전송 실패:', e); }
+}
+
+// ── 이메일 알림 (EmailJS, 선택사항) ──
 const EMAILJS_SERVICE  = 'YOUR_SERVICE_ID';
 const EMAILJS_TEMPLATE = 'YOUR_TEMPLATE_ID';
 const EMAILJS_PUBLIC   = 'YOUR_PUBLIC_KEY';
 const NOTIFY_EMAIL     = 'your@email.com';
 
 async function sendNotificationEmail(rows, today){
+  if(!EMAILJS_SERVICE||EMAILJS_SERVICE==='YOUR_SERVICE_ID') return;
   try{
     const itemLines = rows.map(r=>`• ${r.item_name}: 현재 ${r.remain_qty}박스 (소진 ${r.consumed_qty}박스)`).join('\n');
     await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
@@ -486,25 +541,49 @@ async function submitStocks(){
 
   let allFilled=true;
   ITEMS.forEach(it=>{const el=document.getElementById('inp-'+it.id);if(!el||el.value==='')allFilled=false;});
-  if(!allFilled){alert('모든 품목을 입력해 주세요!');return;}
+  if(!allFilled){alert('모든 품목의 현재 재고를 입력해 주세요!');return;}
 
   btn.disabled=true;btn.textContent='저장 중...';
 
   try{
-    const [prevRows, ibRows] = await Promise.all([
-      sbGet('stocks',`date=eq.${yISO}&select=item_id,remain_qty`),
-      sbGet('inbound',`month=eq.${month}&select=item_id,qty`)
-    ]);
+    const prevRows = await sbGet('stocks',`date=eq.${yISO}&select=item_id,remain_qty`);
     const prevMap={};prevRows.forEach(r=>{prevMap[r.item_id]=r.remain_qty;});
-    const ibMap={};ibRows.forEach(r=>{ibMap[r.item_id]=r.qty;});
 
+    // 당일 입고 수량 수집
+    const ibEntries=[];
+    ITEMS.forEach(it=>{
+      const ibEl=document.getElementById('inp-ib-'+it.id);
+      const ibVal=ibEl&&ibEl.value!==''?parseInt(ibEl.value)||0:0;
+      if(ibVal>0) ibEntries.push({month,item_id:it.id,qty:ibVal,_addOnly:true});
+    });
+
+    // 당일 입고가 있으면 기존 이번달 입고에 누적 저장
+    if(ibEntries.length>0){
+      const existIbRows=await sbGet('inbound',`month=eq.${month}&select=item_id,qty`);
+      const existIbMap={};
+      existIbRows.forEach(r=>{existIbMap[r.item_id]=r.qty;});
+      const upsertIb=ibEntries.map(e=>({
+        month,
+        item_id:e.item_id,
+        qty:(existIbMap[e.item_id]||0)+e.qty
+      }));
+      // 기존 행 삭제 후 재삽입 (upsert 대신)
+      const affectedIds=upsertIb.map(e=>e.item_id);
+      for(const id of affectedIds){
+        await sbDelete('inbound',`month=eq.${month}&item_id=eq.${id}`);
+      }
+      await sbInsert('inbound',upsertIb);
+    }
+
+    // 현재 재고 저장
     await sbDelete('stocks',`date=eq.${today}`);
 
     const rows=ITEMS.map(it=>{
       const val=parseInt(document.getElementById('inp-'+it.id).value)||0;
+      const ibEl=document.getElementById('inp-ib-'+it.id);
+      const todayIb=ibEl&&ibEl.value!==''?parseInt(ibEl.value)||0:0;
       const prev=prevMap[it.id]!==undefined?prevMap[it.id]:0;
-      const ib=ibMap[it.id]||0;
-      const theory=prev+ib;
+      const theory=prev+todayIb;
       return {
         date:today,
         item_id:it.id,
@@ -516,6 +595,10 @@ async function submitStocks(){
     });
 
     await sbInsert('stocks',rows);
+    // 당일 입고 맵 구성 (텔레그램 알림용)
+    const dailyIbMap={};
+    ibEntries.forEach(e=>{dailyIbMap[e.item_id]=e.qty;});
+    await sendTelegramNotification(rows, today, dailyIbMap);
     await sendNotificationEmail(rows, today);
     submitted=true;
     document.getElementById('syncDot').className='sync-dot ok';
@@ -612,43 +695,145 @@ async function renderDash(){
 }
 
 // ══════════════════════
-// 3. 자동 발주
+// 3. 자동 발주 (월초·월말 재고 기반 실사용량 분석)
 // ══════════════════════
 async function renderOrder(){
-  document.getElementById('orderMain').innerHTML='<div class="loading-box"><div class="spinner"></div>불러오는 중...</div>';
+  document.getElementById('orderMain').innerHTML='<div class="loading-box"><div class="spinner"></div>월별 사용량 분석 중...</div>';
   const ITEMS=loadItems();
   const today=todayISO();
-  const month=thisMonth();
 
   try{
-    const [todayRows, orderRows] = await Promise.all([
-      sbGet('stocks',`date=eq.${today}&select=item_id,remain_qty`),
-      sbGet('orders',`select=order_date,item_count&order=order_date.desc&limit=5`)
-    ]);
+    // ── 분석 대상: 오늘 포함 최근 4개월 ──
+    const months=[];
+    for(let i=0;i<4;i++){
+      const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);
+      months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+    const currentMonth = months[0];
+    const analyzeMonths = months.slice(1); // 완료된 달만 분석 (1~3개월 전)
+
+    // ── 오늘 재고 ──
+    const todayRows = await sbGet('stocks',`date=eq.${today}&select=item_id,remain_qty`);
     const todayMap={};todayRows.forEach(r=>{todayMap[r.item_id]=r.remain_qty;});
 
-    let html=`<div class="alert alert-amber"><div class="dot dot-amber"></div>아래 추천 발주량을 확인하고 확정해 주세요. (안전재고 15% 포함)</div>`;
+    // ── 입고 데이터 (전체) ──
+    const allIbRows = await sbGet('inbound',`select=month,item_id,qty`);
+    const ibMap={}; // ibMap[month][item_id] = qty
+    allIbRows.forEach(r=>{
+      if(!ibMap[r.month])ibMap[r.month]={};
+      ibMap[r.month][r.item_id]=r.qty;
+    });
+
+    // ── 월별 첫날·마지막날 재고 조회 ──
+    // 각 분석 달의 전체 stocks 조회해서 JS에서 첫날/마지막날 추출
+    const monthlyUsage={}; // monthlyUsage[item_id] = [usage1, usage2, ...]
+    ITEMS.forEach(it=>{monthlyUsage[it.id]=[];});
+
+    for(const m of analyzeMonths){
+      const [y,mo]=m.split('-').map(Number);
+      const startDate=`${y}-${String(mo).padStart(2,'0')}-01`;
+      const nextMo=mo===12?`${y+1}-01`:`${y}-${String(mo+1).padStart(2,'0')}`;
+      const mRows = await sbGet('stocks',`date=gte.${startDate}&date=lt.${nextMo}-01&select=date,item_id,remain_qty&order=date.asc`);
+
+      if(mRows.length===0) continue;
+
+      // 날짜별 그룹핑
+      const dateSet=[...new Set(mRows.map(r=>r.date))].sort();
+      if(dateSet.length<2) continue; // 데이터가 1일치 뿐이면 분석 불가
+
+      const firstDate=dateSet[0];
+      const lastDate=dateSet[dateSet.length-1];
+
+      const firstMap={},lastMap={};
+      mRows.filter(r=>r.date===firstDate).forEach(r=>{firstMap[r.item_id]=r.remain_qty;});
+      mRows.filter(r=>r.date===lastDate).forEach(r=>{lastMap[r.item_id]=r.remain_qty;});
+
+      ITEMS.forEach(it=>{
+        const s=firstMap[it.id];
+        const e=lastMap[it.id];
+        const ib=(ibMap[m]||{})[it.id]||0;
+        if(s!==undefined && e!==undefined){
+          // 사용량 = 월초재고 + 입고 - 월말재고
+          const usage=s+ib-e;
+          if(usage>=0) monthlyUsage[it.id].push({month:m,start:s,end:e,ib,usage});
+        }
+      });
+    }
+
+    // ── 이번달 현재까지 사용량 (참고용) ──
+    const curMonthStart=`${currentMonth}-01`;
+    const curRows = await sbGet('stocks',`date=gte.${curMonthStart}&select=date,item_id,remain_qty&order=date.asc`);
+    const curDateSet=[...new Set(curRows.map(r=>r.date))].sort();
+    const curFirstMap={};
+    if(curDateSet.length>0){
+      curRows.filter(r=>r.date===curDateSet[0]).forEach(r=>{curFirstMap[r.item_id]=r.remain_qty;});
+    }
+
+    // ── HTML 생성 ──
+    let html=`<div class="adj-banner">📊 <strong>실사용량 기반 발주 분석</strong><br>최근 완료된 달의 <strong>월초 재고 + 입고 - 월말 재고</strong> = 월 사용량을 계산해 발주 수량을 제안합니다. (안전재고 +15% 포함)</div>`;
 
     ITEMS.forEach(it=>{
+      const usages=monthlyUsage[it.id];
+      const avgUsage=usages.length>0?Math.round(usages.reduce((a,u)=>a+u.usage,0)/usages.length):null;
       const current=todayMap[it.id]!==undefined?todayMap[it.id]:null;
-      const rec=Math.max(0,Math.ceil(it.monthAvg*(1+SAFETY)-(current??0)));
-      const ratio=current!==null&&it.monthAvg>0?Math.round(current/it.monthAvg*100):null;
-      const danger=ratio!==null&&ratio<15;
-      const warning=ratio!==null&&ratio<25&&!danger;
-      const color=danger?'var(--red)':warning?'var(--amber)':'var(--green)';
+      const rec=avgUsage!==null?Math.max(0,Math.ceil(avgUsage*(1+SAFETY)-(current??0))):null;
+
+      // 이번달 현재까지 사용량
+      const curStart=curFirstMap[it.id];
+      const curIb=(ibMap[currentMonth]||{})[it.id]||0;
+      const curUsedSoFar=(curStart!==undefined&&current!==null)?curStart+curIb-current:null;
+
+      const noData=usages.length===0;
       html+=`<div class="order-item">
-        <div class="order-top"><span class="order-name">${it.name}</span><span class="order-qty" style="color:${color}">${rec}${it.unit}</span></div>
-        <div style="font-size:11px;color:var(--gray-600)">이번 달 추천 발주량</div>
-        <div class="order-detail">
-          <div><div class="od-label">월 평균</div><div class="od-val">${it.monthAvg}${it.unit}</div></div>
-          <div><div class="od-label">현재 재고</div><div class="od-val">${current!==null?current+it.unit:'미입력'}</div></div>
-          <div><div class="od-label">안전재고</div><div class="od-val">+15%</div></div>
+        <div class="order-top">
+          <span class="order-name">${it.name}</span>
+          <span class="order-qty" style="color:${rec===null?'var(--gray-600)':rec>0?'var(--green)':'var(--blue)'}">
+            ${rec!==null?rec+it.unit:(noData?'데이터 부족':'—')}
+          </span>
         </div>
+        <div style="font-size:11px;color:var(--gray-600);margin-bottom:8px">이번 달 추천 발주량 (평균 사용량 × 1.15 - 현재 재고)</div>
+        <div class="order-detail">
+          <div><div class="od-label">평균 월 사용량</div><div class="od-val">${avgUsage!==null?avgUsage+it.unit:'미산출'}</div></div>
+          <div><div class="od-label">현재 재고</div><div class="od-val">${current!==null?current+it.unit:'미입력'}</div></div>
+          <div><div class="od-label">이번달 현재까지 소진</div><div class="od-val">${curUsedSoFar!==null?curUsedSoFar+it.unit:'—'}</div></div>
+        </div>
+        ${usages.length>0?`
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;color:var(--gray-600);margin-bottom:6px">월별 사용량 내역</div>
+          <div style="overflow-x:auto"><table class="tbl">
+            <thead><tr><th>월</th><th>월초</th><th>입고</th><th>월말</th><th>사용량</th></tr></thead>
+            <tbody>
+              ${usages.map(u=>`<tr>
+                <td style="white-space:nowrap">${fmtMonth(u.month)}</td>
+                <td>${u.start}${it.unit}</td>
+                <td>+${u.ib}${it.unit}</td>
+                <td>${u.end}${it.unit}</td>
+                <td style="font-weight:700;color:var(--green)">${u.usage}${it.unit}</td>
+              </tr>`).join('')}
+              ${usages.length>1?`<tr style="background:var(--gray-100)">
+                <td style="font-weight:700">평균</td>
+                <td colspan="3"></td>
+                <td style="font-weight:700;color:var(--green-mid)">${avgUsage}${it.unit}</td>
+              </tr>`:''}
+            </tbody>
+          </table></div>
+        </div>`:''}
       </div>`;
     });
 
-    html+=`<button class="btn-main" id="orderBtn" onclick="confirmOrder()">발주 확정하기</button>`;
+    const hasAnyRec=ITEMS.some(it=>{
+      const usages=monthlyUsage[it.id];
+      return usages.length>0;
+    });
 
+    if(hasAnyRec){
+      html+=`<button class="btn-main" id="orderBtn" onclick="confirmOrder()">발주 확정하기</button>`;
+    } else {
+      html+=`<div class="alert alert-blue"><div class="dot dot-blue"></div>월초·월말 재고 데이터가 쌓이면 자동으로 발주 분석이 시작돼요. 최소 1개월치 데이터가 필요합니다.</div>`;
+    }
+
+    // 발주 히스토리
+    const orderRows=await sbGet('orders',`select=order_date,item_count&order=order_date.desc&limit=5`);
     if(orderRows.length>0){
       html+=`<div class="card" style="margin-top:12px"><div class="card-title">발주 히스토리</div><table class="tbl">
         <thead><tr><th>발주일</th><th>품목 수</th><th>상태</th></tr></thead><tbody>`;
@@ -846,12 +1031,16 @@ function onLoginSuccess(){
     document.querySelectorAll('.tab').forEach((t,i)=>{
       if(i!==0) t.style.display='none';
     });
+    // sec-input 강제 활성화 (이전 계정 화면 오염 방지)
+    document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    document.getElementById('sec-input').classList.add('on');
+    document.querySelectorAll('.tab')[0].classList.add('on');
     checkConnection();
     renderInput();
   } else {
     // 본사는 재고입력 탭 숨기고 대시보드를 기본으로
     document.querySelectorAll('.tab')[0].style.display='none';
-    // 대시보드 탭 활성화
     const tabs = document.querySelectorAll('.tab');
     const secs = document.querySelectorAll('.sec');
     secs.forEach(s=>s.classList.remove('on'));
@@ -875,6 +1064,16 @@ function confirmLogout(){
   currentUser   = null;
   currentRole   = null;
   submitted     = false;
+  resetMode     = false;
+  // 모든 섹션 내용 초기화 (다음 계정 로그인 시 이전 데이터 잔류 방지)
+  ['inputMain','dashMain','orderMain','inboundMain'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML='';
+  });
+  // 활성 섹션/탭 리셋
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('sec-input').classList.add('on');
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('appBody').style.display='none';
   document.getElementById('loginEmail').value='';
