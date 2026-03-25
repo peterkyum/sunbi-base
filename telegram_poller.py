@@ -96,7 +96,7 @@ def main():
                     for r in saved:
                         consumed = r.get('consumed_qty')
                         ib = r.get('inbound_qty', 0)
-                        consumed_str = f' | 소진 {consumed}박스' if consumed else ''
+                        consumed_str = f' | 소진 {consumed}박스' if consumed is not None and consumed > 0 else ''
                         ib_str = f' | 입고 +{ib}박스' if ib and ib > 0 else ''
                         lines.append(f'• {r["item_name"]}: {r["remain_qty"]}박스{consumed_str}{ib_str}')
                     telegram_send('\n'.join(lines))
