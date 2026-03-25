@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-import json, urllib.request, re, os
+import json, urllib.request, re, os, sys
 from datetime import datetime, timezone, timedelta
 
+LOG_FILE = '/tmp/sunbi_poller_debug.log'
+
+def log(msg):
+    ts = datetime.now().strftime('%H:%M:%S')
+    line = f'[{ts}] {msg}'
+    print(line)
+    with open(LOG_FILE, 'a') as f:
+        f.write(line + '\n')
+
 def _load_env():
-    """스크립트와 같은 폴더의 .env 파일을 읽어 os.environ에 설정"""
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
     if not os.path.exists(env_path):
         return
@@ -20,6 +28,7 @@ _load_env()
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
 CHAT_ID        = os.environ['CHAT_ID']
 SCRIPT_URL     = os.environ['SCRIPT_URL']
+SPREADSHEET_ID = os.environ['SPREADSHEET_ID']
 STATE_FILE = '/tmp/sunbi_last_update_id.txt'
 
 def get_last_update_id():
@@ -67,39 +76,63 @@ def save_to_sheet(date, stocks, inbounds):
         rows.append({
             'item_name': s['item_name'],
             'remain_qty': s['remain_qty'],
+            'consumed_qty': 0,
             'inbound_qty': inbound_map.get(s['item_name'], 0)
         })
-    payload = json.dumps({'date': date, 'rows': rows}).encode()
+    payload = json.dumps({
+        'spreadsheetId': SPREADSHEET_ID,
+        'date': date,
+        'rows': rows
+    }).encode()
+    log(f'POST payload: {payload.decode()[:300]}')
     req = urllib.request.Request(SCRIPT_URL, data=payload, headers={'Content-Type': 'text/plain'}, method='POST')
     res = urllib.request.urlopen(req, timeout=15)
-    return json.loads(res.read().decode())
+    body = res.read().decode()
+    log(f'POST response: {body[:300]}')
+    return json.loads(body)
 
 def main():
     last_id = get_last_update_id()
     data = telegram_get('getUpdates', f'?offset={last_id + 1}&limit=10')
-    if not data.get('ok') or not data.get('result'):
+    updates = data.get('result', [])
+    if not data.get('ok') or not updates:
         return
+
+    log(f'=== {len(updates)}개 메시지 처리 시작 ===')
 
     kst = timezone(timedelta(hours=9))
     now = datetime.now(kst)
     today = now.strftime('%Y-%m-%d')
 
-    for update in data['result']:
+    for update in updates:
         msg = update.get('message', {})
-        if msg.get('chat', {}).get('id') == int(CHAT_ID) and msg.get('text'):
-            stocks, inbounds = parse_message(msg['text'])
+        chat_id = msg.get('chat', {}).get('id')
+        text = msg.get('text', '')
+        log(f'update={update["update_id"]} chat={chat_id} text="{text[:50]}"')
+
+        if chat_id == int(CHAT_ID) and text:
+            stocks, inbounds = parse_message(text)
+            log(f'  parsed: {len(stocks)} stocks, {len(inbounds)} inbounds')
             if stocks:
-                result = save_to_sheet(today, stocks, inbounds)
-                if result.get('success'):
-                    saved = result.get('saved', [])
-                    lines = [f'✅ <b>{today} 재고 입력 완료!</b>\n']
-                    for r in saved:
-                        consumed = r.get('consumed_qty')
-                        ib = r.get('inbound_qty', 0)
-                        consumed_str = f' | 소진 {consumed}박스' if consumed is not None and consumed > 0 else ''
-                        ib_str = f' | 입고 +{ib}박스' if ib and ib > 0 else ''
-                        lines.append(f'• {r["item_name"]}: {r["remain_qty"]}박스{consumed_str}{ib_str}')
-                    telegram_send('\n'.join(lines))
+                try:
+                    result = save_to_sheet(today, stocks, inbounds)
+                    log(f'  result success={result.get("success")}')
+                    if result.get('success'):
+                        saved = result.get('saved', [])
+                        lines = [f'✅ <b>{today} 재고 입력 완료!</b>\n']
+                        for r in saved:
+                            consumed = r.get('consumed_qty')
+                            ib = r.get('inbound_qty', 0)
+                            consumed_str = f' | 소진 {consumed}박스' if consumed is not None and consumed > 0 else ''
+                            ib_str = f' | 입고 +{ib}박스' if ib and ib > 0 else ''
+                            lines.append(f'• {r["item_name"]}: {r["remain_qty"]}박스{consumed_str}{ib_str}')
+                            log(f'  → {r["item_name"]}: remain={r["remain_qty"]} consumed={consumed}')
+                        telegram_send('\n'.join(lines))
+                        log('  → 텔레그램 확인 전송 완료')
+                    else:
+                        log(f'  ❌ 실패: {result.get("error")}')
+                except Exception as e:
+                    log(f'  ❌ 예외: {e}')
         save_last_update_id(update['update_id'])
 
 if __name__ == '__main__':

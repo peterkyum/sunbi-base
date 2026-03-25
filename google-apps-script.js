@@ -86,6 +86,21 @@ function doPost(e) {
 
 // ── GET 핸들러 (배포 테스트용) ──────────────────────────────
 function doGet(e) {
+  try {
+    const action = e && e.parameter && e.parameter.action;
+    if (action === 'debug') {
+      const sid = e.parameter.sid;
+      const ss = sid ? SpreadsheetApp.openById(sid) : SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(SHEET_NAME);
+      if (!sheet) return jsonResponse({ error: 'no sheet' });
+      const lastRow = sheet.getLastRow();
+      const startRow = Math.max(2, lastRow - 9);
+      const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, 6).getValues();
+      return jsonResponse({ lastRow: lastRow, rows: data });
+    }
+  } catch (err) {
+    return jsonResponse({ error: err.message });
+  }
   return jsonResponse({ status: 'ok', message: '선비칼국수 재고관리 API 정상 작동 중' });
 }
 
