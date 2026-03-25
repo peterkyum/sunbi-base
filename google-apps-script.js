@@ -102,13 +102,18 @@ function saveStocksToSheet(date, stocks, inbounds) {
     sheet.setFrozenRows(1);
   }
 
-  // 당일 기존 입력값 읽기 (소진량 계산용)
-  const prevTodayMap = {};
   const lastRow = sheet.getLastRow();
+
+  // 이전 날짜의 가장 최근 재고 조회 (소진량 계산용)
+  const prevDayMap = {};
   if (lastRow > 1) {
     const allData = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
-    for (let i = 0; i < allData.length; i++) {
-      if (allData[i][0] === date) prevTodayMap[allData[i][1]] = allData[i][2];
+    for (let i = allData.length - 1; i >= 0; i--) {
+      const rowDate = allData[i][0];
+      const itemName = allData[i][1];
+      if (rowDate < date && !(itemName in prevDayMap)) {
+        prevDayMap[itemName] = allData[i][2];
+      }
     }
   }
 
@@ -124,10 +129,10 @@ function saveStocksToSheet(date, stocks, inbounds) {
   const inboundMap = {};
   inbounds.forEach(i => { inboundMap[i.item_name] = i.qty; });
 
-  // 재고 행 추가 (소진량 = 당일 이전 입력값 - 현재 입력값)
+  // 재고 행 추가 (소진량 = 이전재고 - 현재고)
   stocks.forEach(s => {
     const inboundQty = inboundMap[s.item_name] || 0;
-    const prevRemain = prevTodayMap[s.item_name];
+    const prevRemain = prevDayMap[s.item_name];
     const consumed = prevRemain !== undefined ? prevRemain - s.remain_qty : 0;
     sheet.appendRow([date, s.item_name, s.remain_qty, consumed, inboundQty, ts]);
   });
