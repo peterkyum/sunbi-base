@@ -47,23 +47,6 @@ def telegram_send(text):
     req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'})
     urllib.request.urlopen(req, timeout=10)
 
-def sb_get(table, query=''):
-    headers = {'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY}
-    req = urllib.request.Request(f'{SB_URL}/rest/v1/{table}?{query}', headers=headers)
-    return json.loads(urllib.request.urlopen(req, timeout=10).read())
-
-def get_prev_stocks(today):
-    """오늘 이전 가장 최근 재고를 item_name 기준으로 반환"""
-    try:
-        rows = sb_get('stocks', f'date=lt.{today}&select=item_name,remain_qty&order=date.desc&limit=100')
-        prev_map = {}
-        for r in rows:
-            if r['item_name'] not in prev_map:
-                prev_map[r['item_name']] = r['remain_qty']
-        return prev_map
-    except:
-        return {}
-
 def parse_message(text):
     lines = text.strip().split('\n')
     stocks, inbounds = [], []
