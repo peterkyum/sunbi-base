@@ -498,12 +498,6 @@ async function sendTelegramNotification(rows, today, dailyInbound){
   }catch(e){ console.error('❌ 텔레그램 전송 실패:', e); }
 }
 
-// ── 이메일 알림 (EmailJS — config.local.js에서 로드) ──
-const EMAILJS_SERVICE  = _cfg.EMAILJS_SERVICE  || '';
-const EMAILJS_TEMPLATE = _cfg.EMAILJS_TEMPLATE || '';
-const EMAILJS_PUBLIC   = _cfg.EMAILJS_PUBLIC   || '';
-const NOTIFY_EMAIL     = _cfg.NOTIFY_EMAIL     || '';
-
 async function sendToGoogleSheet(rows, today, dailyInbound){
   if(!GOOGLE_SCRIPT_URL) return;
   try{
