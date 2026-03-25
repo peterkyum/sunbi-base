@@ -473,11 +473,10 @@ function previewConsumed3(id, prevStock, unit){
   prevEl.style.background=consumed<0?'#FCEBEB':'#EAF3DE';
 }
 
-// ── 텔레그램 봇 알림 설정 ──
-// 아래 두 값을 텔레그램 설정 후 입력하세요
-const TELEGRAM_BOT_TOKEN = '8624851417:AAFohaEN56XVSJ5y67c94z88gSBcOPtBOoE';
-const TELEGRAM_CHAT_ID   = '8774713020';
-const GOOGLE_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzQUcBUlz_uKKi5a-WTD3doGfveaABYj-xRLHDxKhRil5CzQxWkg6U-_sg6oiz7qFDq/exec';
+// ── 텔레그램 봇 알림 설정 (config.local.js에서 로드) ──
+const TELEGRAM_BOT_TOKEN = _cfg.TELEGRAM_TOKEN    || '';
+const TELEGRAM_CHAT_ID   = _cfg.TELEGRAM_CHAT_ID  || '';
+const GOOGLE_SCRIPT_URL  = _cfg.SCRIPT_URL        || '';
 
 async function sendTelegramNotification(rows, today, dailyInbound){
   if(!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN==='YOUR_BOT_TOKEN') return;
