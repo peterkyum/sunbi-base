@@ -63,24 +63,19 @@ def parse_message(text):
             stocks.append({'item_name': m.group(1).strip(), 'remain_qty': int(m.group(2))})
     return stocks, inbounds
 
-def save_to_sheet(date, stocks, inbounds, prev_map):
+def save_to_sheet(date, stocks, inbounds):
     inbound_map = {i['item_name']: i['qty'] for i in inbounds}
     rows = []
     for s in stocks:
-        val = s['remain_qty']
-        ib = inbound_map.get(s['item_name'], 0)
-        prev = prev_map.get(s['item_name'])
-        consumed = (prev - val) if prev is not None else 0
         rows.append({
             'item_name': s['item_name'],
-            'remain_qty': val,
-            'consumed_qty': consumed,
-            'inbound_qty': ib
+            'remain_qty': s['remain_qty'],
+            'inbound_qty': inbound_map.get(s['item_name'], 0)
         })
-    payload = json.dumps({'spreadsheetId': SPREADSHEET_ID, 'date': date, 'rows': rows}).encode()
+    payload = json.dumps({'date': date, 'rows': rows}).encode()
     req = urllib.request.Request(SCRIPT_URL, data=payload, headers={'Content-Type': 'text/plain'}, method='POST')
     res = urllib.request.urlopen(req, timeout=15)
-    return json.loads(res.read().decode()), rows
+    return json.loads(res.read().decode())
 
 def main():
     last_id = get_last_update_id()
