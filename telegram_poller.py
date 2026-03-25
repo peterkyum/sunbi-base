@@ -20,9 +20,6 @@ _load_env()
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
 CHAT_ID        = os.environ['CHAT_ID']
 SCRIPT_URL     = os.environ['SCRIPT_URL']
-SPREADSHEET_ID = os.environ['SPREADSHEET_ID']
-SB_URL         = os.environ['SB_URL']
-SB_KEY         = os.environ['SB_KEY']
 STATE_FILE = '/tmp/sunbi_last_update_id.txt'
 
 def get_last_update_id():
