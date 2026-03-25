@@ -144,6 +144,14 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
 .month-select:focus{outline:none;border-color:var(--green)}
 .section-label{font-size:12px;font-weight:700;color:var(--gray-600);margin:16px 0 8px;padding:0 2px}
 
+/* ── 본사 수정/삭제 ── */
+.hq-actions{display:flex;gap:6px;justify-content:flex-end}
+.btn-edit{background:var(--green);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+.btn-del{background:var(--red,#E24B4A);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+.edit-input{width:60px;border:1.5px solid var(--green);border-radius:6px;padding:4px 6px;font-size:13px;text-align:center;font-family:'Noto Sans KR',sans-serif}
+.btn-save{background:#2563eb;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+.btn-cancel{background:var(--gray-400,#999);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+
 /* ── 재고 조정 ── */
 
 
@@ -398,10 +406,10 @@ async function renderInput(){
 
   ITEMS.forEach(it=>{
     // resetMode(다시 입력하기)일 때는 오늘 제출값을 전날 최종재고로 사용
-    const prevBase = resetMode && todayData[it.id]!==undefined
+    const prevBase = resetMode && todayData[it.id]!==undefined && todayData[it.id]>=0
       ? todayData[it.id]
-      : (prevData[it.id]!==undefined ? prevData[it.id] : null);
-    const savedRemain=(!resetMode && todayData[it.id]!==undefined)?todayData[it.id]:'';
+      : (prevData[it.id]!==undefined && prevData[it.id]>=0 ? prevData[it.id] : null);
+    const savedRemain='';
     // 당일 입고: resetMode가 아니고 오늘 ibData가 있으면 보여줌 (편의용)
     const savedIb='';
 
@@ -414,7 +422,7 @@ async function renderInput(){
 
     const prevLabel = resetMode && todayData[it.id]!==undefined
       ? `오늘 제출 ${todayData[it.id]}${it.unit}`
-      : (prevData[it.id]!==undefined ? `전일 ${prevData[it.id]}${it.unit}` : '전일 미입력');
+      : (prevData[it.id]!==undefined && prevData[it.id]>=0 ? `전일 ${prevData[it.id]}${it.unit}` : '전일 미입력');
 
     html+=`<div class="input-item">
       <div class="input-item-top">
@@ -424,12 +432,12 @@ async function renderInput(){
       <div class="input-row-3">
         <div>
           <div class="input-label">전날 최종재고</div>
-          <div class="input-val">${prevStock!==null?prevStock+it.unit:'미입력'}</div>
+          <div class="input-val">${prevStock!==null?prevStock+'개':'미입력'}</div>
         </div>
         <div>
           <div class="input-label">당일 입고 수량</div>
           <input class="qty-input qty-inbound" type="number" inputmode="numeric" placeholder="0"
-            id="inp-ib-${it.id}" value="${savedIb}"
+            id="inp-ib-${it.id}" value="${savedIb||'0'}"
             oninput="previewConsumed3('${it.id}',${prevStock??0},'${it.unit}')">
         </div>
         <div>
@@ -1019,6 +1027,15 @@ async function doLogin(){
     const emailLower = email.toLowerCase().trim();
     currentRole = HQ_EMAILS.some(e=>e.toLowerCase()===emailLower) ? 'hq' : 'dist';
     console.log('로그인 이메일:', emailLower, '/ 역할:', currentRole);
+    // 세션 저장 (새로고침 시 유지)
+    try{
+      localStorage.setItem('sunbi_session', JSON.stringify({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        email: emailLower,
+        role: currentRole
+      }));
+    }catch(e){console.warn('세션 저장 실패:', e);}
     onLoginSuccess();
   }catch(e){
     err.textContent = e.message==='Invalid login credentials' ? '이메일 또는 비밀번호가 틀렸어요.' : e.message;
@@ -1082,6 +1099,8 @@ function confirmLogout(){
   currentRole   = null;
   submitted     = false;
   resetMode     = false;
+  // 저장된 세션 삭제
+  try{ localStorage.removeItem('sunbi_session'); }catch(e){}
   // 모든 섹션 내용 초기화 (다음 계정 로그인 시 이전 데이터 잔류 방지)
   ['inputMain','dashMain','orderMain','inboundMain'].forEach(id=>{
     const el=document.getElementById(id);
@@ -1142,7 +1161,51 @@ async function openAdjModal(){
 }
 
 // ── 초기 실행 ──
-// 로그인 화면만 먼저 보여줌
+// 저장된 세션이 있으면 자동 로그인 시도
+(async function autoRestore(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('sunbi_session'));
+    if(!saved || !saved.access_token) return;
+    // 토큰이 유효한지 확인
+    SESSION_TOKEN = saved.access_token;
+    const testRes = await fetch(`${SB_URL}/rest/v1/stocks?limit=1`, {
+      headers:{...getHeaders()}
+    });
+    if(!testRes.ok){
+      // access_token 만료 → refresh_token으로 갱신 시도
+      if(saved.refresh_token){
+        const refreshRes = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','apikey':SB_KEY},
+          body:JSON.stringify({refresh_token: saved.refresh_token})
+        });
+        if(refreshRes.ok){
+          const newData = await refreshRes.json();
+          SESSION_TOKEN = newData.access_token;
+          saved.access_token = newData.access_token;
+          saved.refresh_token = newData.refresh_token;
+          localStorage.setItem('sunbi_session', JSON.stringify(saved));
+        } else {
+          // 갱신 실패 → 로그인 화면
+          SESSION_TOKEN = SB_KEY;
+          localStorage.removeItem('sunbi_session');
+          return;
+        }
+      } else {
+        SESSION_TOKEN = SB_KEY;
+        localStorage.removeItem('sunbi_session');
+        return;
+      }
+    }
+    // 세션 복원 성공
+    currentRole = saved.role;
+    currentUser = { email: saved.email };
+    onLoginSuccess();
+  }catch(e){
+    console.warn('자동 로그인 실패:', e);
+    SESSION_TOKEN = SB_KEY;
+  }
+})();
 </script>
 
 
