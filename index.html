@@ -520,19 +520,6 @@ async function sendToGoogleSheet(rows, today, dailyInbound){
   }catch(e){ console.warn('구글 시트 전송 실패:', e); }
 }
 
-async function sendNotificationEmail(rows, today){
-  if(!EMAILJS_SERVICE||EMAILJS_SERVICE==='YOUR_SERVICE_ID') return;
-  try{
-    const itemLines = rows.map(r=>`• ${r.item_name}: 현재 ${r.remain_qty}박스 (소진 ${r.consumed_qty}박스)`).join('\n');
-    await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
-      to_email: NOTIFY_EMAIL,
-      subject: `[선비칼국수] ${today} 재고 입력 완료`,
-      message: `유통사 담당자가 오늘 재고를 입력했습니다.\n\n${itemLines}\n\n앱에서 자세히 확인하세요.`,
-      date: today,
-    }, EMAILJS_PUBLIC);
-  }catch(e){ console.warn('이메일 전송 실패:', e); }
-}
-
 async function submitStocks(){
   const ITEMS=loadItems();
   const today=todayISO();
