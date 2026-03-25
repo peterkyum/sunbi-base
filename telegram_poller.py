@@ -1,13 +1,28 @@
 #!/usr/bin/env python3
-import json, urllib.request, re
+import json, urllib.request, re, os
 from datetime import datetime, timezone, timedelta
 
-TELEGRAM_TOKEN = '8624851417:AAFohaEN56XVSJ5y67c94z88gSBcOPtBOoE'
-CHAT_ID = '8774713020'
-SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbztdLxZ9rjDMxnHCN00a2xlM9xoaZuzJJpdw4zZZM6lRQ44YeMt64qVFTjub5pzUywM/exec'
-SPREADSHEET_ID = '1ZSz3IAa8B--i4wSixq6gDkEUb4s-OV9j-C2HAl4sKAM'
-SB_URL = 'https://nhgkzquqbxbzwejzcdft.supabase.co'
-SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oZ2t6cXVxYnhiendlanpjZGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjc5NzgsImV4cCI6MjA4OTgwMzk3OH0.K8CIaX3nPQ9EzBvhjpMol8Ng9i-7iM71HxboAXhx0QM'
+def _load_env():
+    """스크립트와 같은 폴더의 .env 파일을 읽어 os.environ에 설정"""
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if not os.path.exists(env_path):
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            k, v = line.split('=', 1)
+            os.environ.setdefault(k.strip(), v.strip())
+
+_load_env()
+
+TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
+CHAT_ID        = os.environ['CHAT_ID']
+SCRIPT_URL     = os.environ['SCRIPT_URL']
+SPREADSHEET_ID = os.environ['SPREADSHEET_ID']
+SB_URL         = os.environ['SB_URL']
+SB_KEY         = os.environ['SB_KEY']
 STATE_FILE = '/tmp/sunbi_last_update_id.txt'
 
 def get_last_update_id():
