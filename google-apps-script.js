@@ -147,12 +147,22 @@ function sendTelegramMessage(text) {
 }
 
 // =============================================
-// 6. 웹앱 POST 처리 (기존 기능 유지)
-// index.html의 submitStocks()에서 호출
+// 6. 웹앱 POST 처리 (텔레그램 webhook + index.html 연동)
 // =============================================
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
+
+    // 텔레그램 webhook 메시지 처리
+    if (data.update_id) {
+      const msg = data.message;
+      if (msg && msg.chat.id.toString() === ALLOWED_CHAT_ID && msg.text) {
+        processInventoryMessage(msg.text);
+      }
+      return ContentService.createTextOutput('OK');
+    }
+
+    // index.html submitStocks() 처리 (기존 기능)
     const ss = SpreadsheetApp.openById(data.spreadsheetId);
     let sheet = ss.getSheetByName('재고기록');
     if (!sheet) {
