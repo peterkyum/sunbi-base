@@ -102,8 +102,17 @@ function saveStocksToSheet(date, stocks, inbounds) {
     sheet.setFrozenRows(1);
   }
 
-  // 해당 날짜 기존 행 삭제
+  // 당일 기존 입력값 읽기 (소진량 계산용)
+  const prevTodayMap = {};
   const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    const allData = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+    for (let i = 0; i < allData.length; i++) {
+      if (allData[i][0] === date) prevTodayMap[allData[i][1]] = allData[i][2];
+    }
+  }
+
+  // 해당 날짜 기존 행 삭제
   if (lastRow > 1) {
     const dates = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
     for (let i = dates.length - 1; i >= 0; i--) {
@@ -115,10 +124,12 @@ function saveStocksToSheet(date, stocks, inbounds) {
   const inboundMap = {};
   inbounds.forEach(i => { inboundMap[i.item_name] = i.qty; });
 
-  // 재고 행 추가
+  // 재고 행 추가 (소진량 = 당일 이전 입력값 - 현재 입력값)
   stocks.forEach(s => {
     const inboundQty = inboundMap[s.item_name] || 0;
-    sheet.appendRow([date, s.item_name, s.remain_qty, 0, inboundQty, ts]);
+    const prevRemain = prevTodayMap[s.item_name];
+    const consumed = prevRemain !== undefined ? prevRemain - s.remain_qty : 0;
+    sheet.appendRow([date, s.item_name, s.remain_qty, consumed, inboundQty, ts]);
   });
 
   // 입고기록 시트 (입고가 있을 때만)
