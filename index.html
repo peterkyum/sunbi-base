@@ -461,11 +461,12 @@ function previewConsumed3(id, prevStock, unit){
   const elRemain=document.getElementById('inp-'+id);
   const prevEl=document.getElementById('prev-'+id);
   const ib=elIb&&elIb.value!==''?parseInt(elIb.value)||0:0;
-  const theory=prevStock+ib;
   if(!elRemain||elRemain.value===''){if(prevEl)prevEl.style.display='none';return;}
-  const consumed=theory-parseInt(elRemain.value||0);
+  const val=parseInt(elRemain.value||0);
+  const finalRemain=val+ib;
+  const consumed=prevStock-val;
   prevEl.style.display='block';
-  prevEl.textContent=`오늘 소진량: ${consumed}${unit}  (전날${prevStock}+입고${ib}-현재재고)`;
+  prevEl.textContent=`최종재고: ${finalRemain}${unit}  소진량: ${consumed}${unit}  (전날${prevStock}-입력${val}+입고${ib})`;
   prevEl.style.color=consumed<0?'#A32D2D':'#2D6A1F';
   prevEl.style.background=consumed<0?'#FCEBEB':'#EAF3DE';
 }
