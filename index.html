@@ -301,7 +301,7 @@ const SAFETY=0.15;
 
 function loadItems(){try{const s=JSON.parse(localStorage.getItem(ITEMS_KEY));return s&&s.length>0?s:DEFAULT_ITEMS;}catch{return DEFAULT_ITEMS;}}
 function saveItems(d){localStorage.setItem(ITEMS_KEY,JSON.stringify(d));}
-function todayISO(){return new Date().toISOString().split('T')[0]}
+function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function thisMonth(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
 function fmtDate(s){const d=new Date(s);return `${d.getMonth()+1}/${d.getDate()}`}
 function fmtMonth(m){const[y,mo]=m.split('-');return `${y}년 ${parseInt(mo)}월`}
@@ -359,8 +359,10 @@ async function renderInput(){
       : `<div class="alert alert-amber"><div class="dot dot-amber"></div>아직 오늘 재고가 입력되지 않았어요.</div>`;
 
     ITEMS.forEach(it=>{
-      const current = todayData[it.id]!==undefined ? todayData[it.id] : null;
-      const prev = prevData[it.id]!==undefined ? prevData[it.id] : null;
+      const rawCurrent = todayData[it.id]!==undefined ? todayData[it.id] : null;
+      const current = rawCurrent!==null ? Math.max(0, rawCurrent) : null;
+      const rawPrev = prevData[it.id]!==undefined ? prevData[it.id] : null;
+      const prev = rawPrev!==null ? Math.max(0, rawPrev) : null;
       const ib = inboundData[it.id]||0;
       html+=`<div class="input-item">
         <div class="input-item-top">
@@ -406,9 +408,10 @@ async function renderInput(){
 
   ITEMS.forEach(it=>{
     // resetMode(다시 입력하기)일 때는 오늘 제출값을 전날 최종재고로 사용
-    const prevBase = resetMode && todayData[it.id]!==undefined && todayData[it.id]>=0
+    const rawPrevBase = resetMode && todayData[it.id]!==undefined
       ? todayData[it.id]
-      : (prevData[it.id]!==undefined && prevData[it.id]>=0 ? prevData[it.id] : null);
+      : (prevData[it.id]!==undefined ? prevData[it.id] : null);
+    const prevBase = rawPrevBase!==null ? Math.max(0, rawPrevBase) : null;
     const savedRemain='';
     // 당일 입고: resetMode가 아니고 오늘 ibData가 있으면 보여줌 (편의용)
     const savedIb='';
@@ -421,8 +424,8 @@ async function renderInput(){
     const consumed=savedRemain!==''?(initTheory-Number(savedRemain)):null;
 
     const prevLabel = resetMode && todayData[it.id]!==undefined
-      ? `오늘 제출 ${todayData[it.id]}${it.unit}`
-      : (prevData[it.id]!==undefined && prevData[it.id]>=0 ? `전일 ${prevData[it.id]}${it.unit}` : '전일 미입력');
+      ? `오늘 제출 ${Math.max(0,todayData[it.id])}${it.unit}`
+      : (prevData[it.id]!==undefined ? `전일 ${Math.max(0,prevData[it.id])}${it.unit}` : '전일 미입력');
 
     html+=`<div class="input-item">
       <div class="input-item-top">
@@ -442,7 +445,7 @@ async function renderInput(){
         </div>
         <div>
           <div class="input-label">현재 재고 입력</div>
-          <input class="qty-input" type="number" inputmode="numeric" placeholder="0"
+          <input class="qty-input" type="number" inputmode="numeric" placeholder="0" min="0"
             id="inp-${it.id}" value="${savedRemain}"
             oninput="previewConsumed3('${it.id}',${prevStock??0},'${it.unit}')">
         </div>
@@ -581,17 +584,17 @@ async function submitStocks(){
     await sbDelete('stocks',`date=eq.${today}`);
 
     const rows=ITEMS.map(it=>{
-      const val=parseInt(document.getElementById('inp-'+it.id).value)||0;
+      const val=Math.max(0, parseInt(document.getElementById('inp-'+it.id).value)||0);
       const ibEl=document.getElementById('inp-ib-'+it.id);
-      const todayIb=ibEl&&ibEl.value!==''?parseInt(ibEl.value)||0:0;
-      const prev=prevMap[it.id]!==undefined?prevMap[it.id]:0;
+      const todayIb=Math.max(0, ibEl&&ibEl.value!==''?parseInt(ibEl.value)||0:0);
+      const prev=prevMap[it.id]!==undefined?Math.max(0, prevMap[it.id]):0;
       const theory=prev+todayIb;
       return {
         date:today,
         item_id:it.id,
         item_name:it.name,
-        remain_qty:val+todayIb,
-        consumed_qty:prev-val,
+        remain_qty:Math.max(0, val+todayIb),
+        consumed_qty:Math.max(0, prev-val),
         submitted_by:'유통사담당자'
       };
     });
@@ -633,8 +636,8 @@ async function renderDash(){
 
     const statuses=ITEMS.map(it=>{
       const row=todayMap[it.id];
-      const current=row?row.remain_qty:null;
-      const consumed=row?row.consumed_qty:null;
+      const current=row?Math.max(0,row.remain_qty):null;
+      const consumed=row?Math.max(0,row.consumed_qty):null;
       const ratio=current!==null&&it.monthAvg>0?Math.round(current/it.monthAvg*100):null;
       return {...it,current,consumed,ratio,danger:ratio!==null&&ratio<15,warning:ratio!==null&&ratio<25&&!(ratio<15)};
     });
@@ -718,7 +721,7 @@ async function renderOrder(){
 
     // ── 오늘 재고 ──
     const todayRows = await sbGet('stocks',`date=eq.${today}&select=item_id,remain_qty`);
-    const todayMap={};todayRows.forEach(r=>{todayMap[r.item_id]=r.remain_qty;});
+    const todayMap={};todayRows.forEach(r=>{todayMap[r.item_id]=Math.max(0,r.remain_qty);});
 
     // ── 입고 데이터 (전체) ──
     const allIbRows = await sbGet('inbound',`select=month,item_id,qty`);
@@ -1162,20 +1165,104 @@ async function openAdjModal(){
   }catch(e){alert('오류: '+e.message);}
 }
 
+// ══════════════════════
+// 본사 수정/삭제 기능
+// ══════════════════════
+
+function hqEdit(itemId, itemName, currentQty){
+  const td = document.getElementById('td-cur-'+itemId);
+  if(!td) return;
+  const unit = loadItems().find(it=>it.id===itemId)?.unit||'박스';
+  td.innerHTML=`<input class="edit-input" id="edit-val-${itemId}" type="number" inputmode="numeric" value="${currentQty}">`;
+  // 관리 컬럼의 버튼을 저장/취소로 교체
+  const tr = td.parentElement;
+  const actionTd = tr.querySelector('td:last-child');
+  actionTd.innerHTML=`<div class="hq-actions"><button class="btn-save" onclick="hqSave('${itemId}','${itemName}',${currentQty})">저장</button><button class="btn-cancel" onclick="renderDash()">취소</button></div>`;
+  document.getElementById('edit-val-'+itemId).focus();
+}
+
+async function hqSave(itemId, itemName, oldQty){
+  const inp = document.getElementById('edit-val-'+itemId);
+  if(!inp) return;
+  const newQty = parseInt(inp.value);
+  if(isNaN(newQty)||newQty<0){alert('올바른 수량을 입력해 주세요.');return;}
+  if(newQty===oldQty){renderDash();return;}
+  const today = todayISO();
+  try{
+    const res = await fetch(`${SB_URL}/rest/v1/stocks?date=eq.${today}&item_id=eq.${itemId}`,{
+      method:'PATCH',
+      headers:{...getHeaders(),'Prefer':'return=representation'},
+      body:JSON.stringify({remain_qty:newQty,submitted_by:'본사수정'})
+    });
+    if(!res.ok) throw new Error(await res.text());
+    // 스프레드시트에 수정 기록
+    sendEditLog(itemName, oldQty, newQty, today);
+    alert(`${itemName} 재고: ${oldQty} → ${newQty} 수정 완료`);
+    renderDash();
+  }catch(e){alert('수정 오류: '+e.message);}
+}
+
+async function hqDelete(itemId, itemName){
+  if(!confirm(`[${itemName}] 오늘 재고 데이터를 삭제할까요?\n삭제하면 스프레드시트에 기록이 남습니다.`)) return;
+  const today = todayISO();
+  try{
+    // 삭제 전 현재 수량 조회
+    const rows = await sbGet('stocks',`date=eq.${today}&item_id=eq.${itemId}&select=remain_qty`);
+    const qty = rows.length>0 ? rows[0].remain_qty : 0;
+    // Supabase에서 삭제
+    await sbDelete('stocks',`date=eq.${today}&item_id=eq.${itemId}`);
+    // 스프레드시트에 삭제 기록
+    sendDeleteLog(itemName, qty, today);
+    alert(`${itemName} 재고 삭제 완료`);
+    renderDash();
+  }catch(e){alert('삭제 오류: '+e.message);}
+}
+
+async function sendDeleteLog(itemName, qty, date){
+  if(!GOOGLE_SCRIPT_URL) return;
+  try{
+    await fetch(GOOGLE_SCRIPT_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({
+        spreadsheetId:'1ZSz3IAa8B--i4wSixq6gDkEUb4s-OV9j-C2HAl4sKAM',
+        action:'delete',
+        date,
+        rows:[{item_name:itemName,remain_qty:qty,consumed_qty:0,inbound_qty:0}]
+      })
+    });
+  }catch(e){console.warn('삭제 기록 전송 실패:',e);}
+}
+
+async function sendEditLog(itemName, oldQty, newQty, date){
+  if(!GOOGLE_SCRIPT_URL) return;
+  try{
+    await fetch(GOOGLE_SCRIPT_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({
+        spreadsheetId:'1ZSz3IAa8B--i4wSixq6gDkEUb4s-OV9j-C2HAl4sKAM',
+        action:'edit',
+        date,
+        rows:[{item_name:itemName,old_qty:oldQty,new_qty:newQty}]
+      })
+    });
+  }catch(e){console.warn('수정 기록 전송 실패:',e);}
+}
+
 // ── 초기 실행 ──
 // 저장된 세션이 있으면 자동 로그인 시도
 (async function autoRestore(){
   try{
-    const saved = JSON.parse(localStorage.getItem('sunbi_session'));
-    if(!saved || !saved.access_token) return;
-    // 토큰이 유효한지 확인
-    SESSION_TOKEN = saved.access_token;
-    const testRes = await fetch(`${SB_URL}/rest/v1/stocks?limit=1`, {
-      headers:{...getHeaders()}
-    });
-    if(!testRes.ok){
-      // access_token 만료 → refresh_token으로 갱신 시도
-      if(saved.refresh_token){
+    const raw = localStorage.getItem('sunbi_session');
+    if(!raw) return;
+    const saved = JSON.parse(raw);
+    if(!saved || !saved.access_token || !saved.role || !saved.email) return;
+
+    // refresh_token으로 항상 새 토큰 발급 시도 (만료 여부와 무관하게 안정적)
+    async function tryRefresh(){
+      if(!saved.refresh_token) return false;
+      try{
         const refreshRes = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{
           method:'POST',
           headers:{'Content-Type':'application/json','apikey':SB_KEY},
@@ -1187,18 +1274,34 @@ async function openAdjModal(){
           saved.access_token = newData.access_token;
           saved.refresh_token = newData.refresh_token;
           localStorage.setItem('sunbi_session', JSON.stringify(saved));
-        } else {
-          // 갱신 실패 → 로그인 화면
-          SESSION_TOKEN = SB_KEY;
-          localStorage.removeItem('sunbi_session');
-          return;
+          return true;
         }
-      } else {
+      }catch(e){console.warn('토큰 갱신 실패:', e);}
+      return false;
+    }
+
+    // 1차: 기존 access_token으로 검증
+    SESSION_TOKEN = saved.access_token;
+    let tokenValid = false;
+    try{
+      const testRes = await fetch(`${SB_URL}/auth/v1/user`, {
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SESSION_TOKEN}
+      });
+      tokenValid = testRes.ok;
+    }catch(e){
+      console.warn('토큰 검증 네트워크 오류:', e);
+    }
+
+    // 2차: access_token 만료 시 refresh_token으로 갱신
+    if(!tokenValid){
+      const refreshed = await tryRefresh();
+      if(!refreshed){
         SESSION_TOKEN = SB_KEY;
         localStorage.removeItem('sunbi_session');
         return;
       }
     }
+
     // 세션 복원 성공
     currentRole = saved.role;
     currentUser = { email: saved.email };
@@ -1206,6 +1309,7 @@ async function openAdjModal(){
   }catch(e){
     console.warn('자동 로그인 실패:', e);
     SESSION_TOKEN = SB_KEY;
+    localStorage.removeItem('sunbi_session');
   }
 })();
 </script>
