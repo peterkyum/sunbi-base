@@ -83,7 +83,6 @@ def main():
     kst = timezone(timedelta(hours=9))
     now = datetime.now(kst)
     today = now.strftime('%Y-%m-%d')
-    yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
 
     for update in data['result']:
         msg = update.get('message', {})
