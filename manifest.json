@@ -1,0 +1,20 @@
+{
+  "name": "선비칼국수 재고관리",
+  "short_name": "선비칼국수",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f5f3",
+  "theme_color": "#7B4A1E",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
