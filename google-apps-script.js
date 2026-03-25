@@ -1,203 +1,176 @@
-// =============================================
-// 설정값
-// =============================================
-const TELEGRAM_TOKEN = '8624851417:AAFohaEN56XVSJ5y67c94z88gSBcOPtBOoE';
-const ALLOWED_CHAT_ID = '8774713020';
-const SPREADSHEET_ID = '1ZSz3IAa8B--i4wSixq6gDkEUb4s-OV9j-C2HAl4sKAM';
+// ══════════════════════════════════════════════════════════════
+// 선비칼국수 재고관리 - Google Apps Script
+// 기능: POST 요청을 받아 '재고기록' 시트에 누적 기록
+//       이전 현재재고 - 이번 현재재고 = 소진량 자동 계산
+// ══════════════════════════════════════════════════════════════
 
-// =============================================
-// 1. 트리거 설정 (최초 1회만 실행)
-// Apps Script 편집기에서 setupTrigger() 함수를 직접 실행하세요
-// =============================================
-function setupTrigger() {
-  ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('pollTelegram')
-    .timeBased()
-    .everyMinutes(1)
-    .create();
-  Logger.log('✅ 1분 간격 텔레그램 폴링 트리거 설정 완료!');
-}
+const SHEET_NAME = '재고기록';
 
-// =============================================
-// 2. 텔레그램 메시지 폴링 (매 1분 자동 실행)
-// =============================================
-function pollTelegram() {
-  const props = PropertiesService.getScriptProperties();
-  const lastUpdateId = parseInt(props.getProperty('lastUpdateId') || '0');
-
-  try {
-    const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&limit=10`;
-    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    const data = JSON.parse(res.getContentText());
-
-    if (!data.ok || !data.result.length) return;
-
-    for (const update of data.result) {
-      const msg = update.message;
-      if (msg && msg.chat.id.toString() === ALLOWED_CHAT_ID && msg.text) {
-        processInventoryMessage(msg.text);
-      }
-      props.setProperty('lastUpdateId', update.update_id.toString());
-    }
-  } catch (e) {
-    Logger.log('폴링 오류: ' + e.message);
-  }
-}
-
-// =============================================
-// 3. 재고 메시지 파싱 및 처리
-// =============================================
-function processInventoryMessage(text) {
-  const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
-  const lines = text.trim().split('\n');
-
-  const stocks = [];
-  const inbounds = [];
-
-  for (const line of lines) {
-    const t = line.trim();
-    if (!t) continue;
-
-    // 입고 패턴: "금일 면대 120박스" 또는 "금일 면대 120박스 +8박스(샘플)"
-    const inboundMatch = t.match(/금일\s+(.+?)\s+(\d+)\s*박스/);
-    if (inboundMatch) {
-      inbounds.push({ item_name: inboundMatch[1].trim(), qty: parseInt(inboundMatch[2]) });
-      continue;
-    }
-
-    // 재고 패턴: "비빔장소스 34 박스" 또는 "비빔장소스 34박스"
-    const stockMatch = t.match(/^(.+?)\s+(\d+)\s*박스/);
-    if (stockMatch) {
-      stocks.push({ item_name: stockMatch[1].trim(), remain_qty: parseInt(stockMatch[2]) });
-    }
-  }
-
-  if (stocks.length === 0) return; // 재고 형식 메시지가 아닌 경우 무시
-
-  saveStocksToSheet(today, stocks, inbounds);
-
-  // 확인 메시지 답장
-  const confirmLines = [`✅ <b>${today} 재고 입력 완료!</b>\n`];
-  stocks.forEach(s => confirmLines.push(`• ${s.item_name}: ${s.remain_qty}박스`));
-  if (inbounds.length > 0) {
-    confirmLines.push('\n📦 <b>입고 기록:</b>');
-    inbounds.forEach(i => confirmLines.push(`• ${i.item_name}: ${i.qty}박스`));
-  }
-  sendTelegramMessage(confirmLines.join('\n'));
-}
-
-// =============================================
-// 4. 구글 시트 저장
-// =============================================
-function saveStocksToSheet(date, stocks, inbounds) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const ts = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
-
-  // 재고기록 시트
-  let sheet = ss.getSheetByName('재고기록');
-  if (!sheet) {
-    sheet = ss.insertSheet('재고기록');
-    sheet.appendRow(['날짜', '제품명', '현재재고(박스)', '소진량(박스)', '당일입고(박스)', '기록시간']);
-    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f3f3f3');
-    sheet.setFrozenRows(1);
-  }
-
-  const lastRow = sheet.getLastRow();
-
-  // 이전 날짜의 가장 최근 재고 조회 (소진량 계산용)
-  const prevDayMap = {};
-  if (lastRow > 1) {
-    const allData = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
-    for (let i = allData.length - 1; i >= 0; i--) {
-      const rowDate = allData[i][0];
-      const itemName = allData[i][1];
-      if (rowDate < date && !(itemName in prevDayMap)) {
-        prevDayMap[itemName] = allData[i][2];
-      }
-    }
-  }
-
-  // 해당 날짜 기존 행 삭제
-  if (lastRow > 1) {
-    const dates = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-    for (let i = dates.length - 1; i >= 0; i--) {
-      if (dates[i][0] === date) sheet.deleteRow(i + 2);
-    }
-  }
-
-  // 입고 매핑
-  const inboundMap = {};
-  inbounds.forEach(i => { inboundMap[i.item_name] = i.qty; });
-
-  // 재고 행 추가 (소진량 = 이전재고 - 현재고)
-  stocks.forEach(s => {
-    const inboundQty = inboundMap[s.item_name] || 0;
-    const prevRemain = prevDayMap[s.item_name];
-    const consumed = prevRemain !== undefined ? prevRemain - s.remain_qty : 0;
-    sheet.appendRow([date, s.item_name, s.remain_qty, consumed, inboundQty, ts]);
-  });
-
-  // 입고기록 시트 (입고가 있을 때만)
-  if (inbounds.length > 0) {
-    let ibSheet = ss.getSheetByName('입고기록');
-    if (!ibSheet) {
-      ibSheet = ss.insertSheet('입고기록');
-      ibSheet.appendRow(['날짜', '제품명', '입고수량(박스)', '기록시간']);
-      ibSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#f3f3f3');
-      ibSheet.setFrozenRows(1);
-    }
-    inbounds.forEach(i => ibSheet.appendRow([date, i.item_name, i.qty, ts]));
-  }
-}
-
-// =============================================
-// 5. 텔레그램 메시지 전송
-// =============================================
-function sendTelegramMessage(text) {
-  UrlFetchApp.fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify({ chat_id: ALLOWED_CHAT_ID, text: text, parse_mode: 'HTML' }),
-    muteHttpExceptions: true
-  });
-}
-
-// =============================================
-// 6. 웹앱 POST 처리 (텔레그램 webhook + index.html 연동)
-// =============================================
+/**
+ * HTTP POST 엔드포인트
+ * index.html 의 sendToGoogleSheet() 또는 telegram_poller.py 에서 호출
+ *
+ * 예상 payload:
+ * {
+ *   "spreadsheetId": "...",   // optional, 배포된 스크립트 자신의 시트를 사용
+ *   "date": "2026-03-25",
+ *   "rows": [
+ *     { "item_name": "비빔장소스", "remain_qty": 50, "consumed_qty": 5, "inbound_qty": 0 },
+ *     ...
+ *   ]
+ * }
+ */
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    const payload = JSON.parse(e.postData.contents);
+    const date    = payload.date  || getTodayKST();
+    const rows    = payload.rows  || [];
 
-    // 텔레그램 webhook 메시지 처리
-    if (data.update_id) {
-      const msg = data.message;
-      if (msg && msg.chat.id.toString() === ALLOWED_CHAT_ID && msg.text) {
-        processInventoryMessage(msg.text);
-      }
-      return ContentService.createTextOutput('OK');
+    if (!rows.length) {
+      return jsonResponse({ success: false, error: 'rows is empty' });
     }
 
-    // index.html submitStocks() 처리 (기존 기능)
-    const ss = SpreadsheetApp.openById(data.spreadsheetId);
-    let sheet = ss.getSheetByName('재고기록');
-    if (!sheet) {
-      sheet = ss.insertSheet('재고기록');
-      sheet.appendRow(['날짜', '제품명', '현재재고(박스)', '소진량(박스)', '당일입고(박스)', '기록시간']);
-      sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f3f3f3');
-      sheet.setFrozenRows(1);
+    const ss    = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = getOrCreateSheet(ss);
+
+    // 헤더가 없으면 추가
+    ensureHeader(sheet);
+
+    // 각 품목 처리
+    const saved = [];
+    for (const row of rows) {
+      const itemName  = String(row.item_name  || '').trim();
+      const remainQty = Number(row.remain_qty) || 0;
+      const inboundQty = Number(row.inbound_qty) || 0;
+
+      if (!itemName) continue;
+
+      // ── 핵심 로직: 이전 현재재고 찾기 ──────────────────────
+      // 시트를 역순으로 탐색하여 같은 품목의 가장 최근 '현재재고' 값을 찾음
+      const prevRemain = findPrevRemain(sheet, itemName);
+
+      // 소진량 = 이전 현재재고 - 이번 현재재고
+      // (이전 기록이 없으면 소진량을 '-' 로 표시)
+      const consumedQty = (prevRemain !== null) ? (prevRemain - remainQty) : null;
+
+      // KST 현재 시각
+      const timeStr = getTimeKST();
+
+      // 새 행 추가: [날짜, 품목명, 현재재고, 소진량, 입고량, 기록시각]
+      sheet.appendRow([
+        date,
+        itemName,
+        remainQty,
+        consumedQty !== null ? consumedQty : '',   // 이전 기록 없으면 빈 칸
+        inboundQty,
+        timeStr
+      ]);
+
+      saved.push({
+        item_name:    itemName,
+        remain_qty:   remainQty,
+        consumed_qty: consumedQty,
+        inbound_qty:  inboundQty,
+      });
     }
-    const ts = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
-    const lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      const dates = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-      for (let i = dates.length - 1; i >= 0; i--) {
-        if (dates[i][0] === data.date) sheet.deleteRow(i + 2);
-      }
-    }
-    data.rows.forEach(r => sheet.appendRow([data.date, r.item_name, r.remain_qty, r.consumed_qty, r.inbound_qty || 0, ts]));
-    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+
+    return jsonResponse({ success: true, saved });
+
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ success: false, error: err.message });
   }
+}
+
+// ── GET 핸들러 (배포 테스트용) ──────────────────────────────
+function doGet(e) {
+  return jsonResponse({ status: 'ok', message: '선비칼국수 재고관리 API 정상 작동 중' });
+}
+
+// ── 헬퍼 함수들 ────────────────────────────────────────────
+
+/**
+ * '재고기록' 시트를 가져오거나 없으면 생성
+ */
+function getOrCreateSheet(ss) {
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+  }
+  return sheet;
+}
+
+/**
+ * 헤더 행이 없으면 첫 행에 추가
+ */
+function ensureHeader(sheet) {
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['날짜', '품목명', '현재재고', '소진량', '입고량', '기록시각']);
+
+    // 헤더 스타일 꾸미기
+    const headerRange = sheet.getRange(1, 1, 1, 6);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#4A7C59');
+    headerRange.setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+
+    // 컬럼 너비 조정
+    sheet.setColumnWidth(1, 110);  // 날짜
+    sheet.setColumnWidth(2, 140);  // 품목명
+    sheet.setColumnWidth(3,  90);  // 현재재고
+    sheet.setColumnWidth(4,  90);  // 소진량
+    sheet.setColumnWidth(5,  80);  // 입고량
+    sheet.setColumnWidth(6, 100);  // 기록시각
+  }
+}
+
+/**
+ * 시트를 역순으로 탐색하여 같은 품목의 직전 '현재재고'를 반환
+ * 없으면 null 반환
+ * 
+ * 컬럼 순서: [날짜(1), 품목명(2), 현재재고(3), 소진량(4), 입고량(5), 기록시각(6)]
+ */
+function findPrevRemain(sheet, itemName) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return null;  // 헤더만 있거나 비어 있음
+
+  // B열(품목명)과 C열(현재재고)를 한 번에 가져옴 (헤더 제외, 2행부터)
+  const dataRange = sheet.getRange(2, 2, lastRow - 1, 2);
+  const values    = dataRange.getValues();  // [[품목명, 현재재고], ...]
+
+  // 역순으로 탐색 → 가장 최근 행부터
+  for (let i = values.length - 1; i >= 0; i--) {
+    const name  = String(values[i][0]).trim();
+    const qty   = values[i][1];
+    if (name === itemName && qty !== '' && qty !== null) {
+      return Number(qty);
+    }
+  }
+  return null;  // 이전 기록 없음
+}
+
+/**
+ * KST 기준 오늘 날짜 반환 (YYYY-MM-DD)
+ */
+function getTodayKST() {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return Utilities.formatDate(kst, 'UTC', 'yyyy-MM-dd');
+}
+
+/**
+ * KST 기준 현재 시각 반환 (HH:mm)
+ */
+function getTimeKST() {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return Utilities.formatDate(kst, 'UTC', 'HH:mm');
+}
+
+/**
+ * JSON ContentService 응답 생성
+ */
+function jsonResponse(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
