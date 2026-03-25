@@ -25,6 +25,7 @@ function doPost(e) {
     const payload = JSON.parse(e.postData.contents);
     const date    = payload.date  || getTodayKST();
     const rows    = payload.rows  || [];
+    const action  = payload.action || 'record';
 
     if (!rows.length) {
       return jsonResponse({ success: false, error: 'rows is empty' });
@@ -35,10 +36,35 @@ function doPost(e) {
                 : SpreadsheetApp.getActiveSpreadsheet();
     const sheet = getOrCreateSheet(ss);
 
-    // 헤더가 없으면 추가
     ensureHeader(sheet);
+    const timeStr = getTimeKST();
 
-    // 각 품목 처리
+    // ── 삭제 기록 ──
+    if (action === 'delete') {
+      for (const row of rows) {
+        const itemName = String(row.item_name || '').trim();
+        const qty = Number(row.remain_qty) || 0;
+        if (!itemName) continue;
+        sheet.appendRow([date, itemName, '[삭제됨] ' + qty, '', '', timeStr + ' 본사삭제']);
+      }
+      SpreadsheetApp.flush();
+      return jsonResponse({ success: true, action: 'delete' });
+    }
+
+    // ── 수정 기록 ──
+    if (action === 'edit') {
+      for (const row of rows) {
+        const itemName = String(row.item_name || '').trim();
+        const oldQty = Number(row.old_qty) || 0;
+        const newQty = Number(row.new_qty) || 0;
+        if (!itemName) continue;
+        sheet.appendRow([date, itemName, newQty, '[수정] ' + oldQty + ' → ' + newQty, '', timeStr + ' 본사수정']);
+      }
+      SpreadsheetApp.flush();
+      return jsonResponse({ success: true, action: 'edit' });
+    }
+
+    // ── 일반 재고 기록 ──
     const saved = [];
     for (const row of rows) {
       const itemName  = String(row.item_name  || '').trim();
@@ -47,23 +73,14 @@ function doPost(e) {
 
       if (!itemName) continue;
 
-      // ── 핵심 로직: 이전 현재재고 찾기 ──────────────────────
-      // 시트를 역순으로 탐색하여 같은 품목의 가장 최근 '현재재고' 값을 찾음
       const prevRemain = findPrevRemain(sheet, itemName);
-
-      // 소진량 = 이전 현재재고 - 이번 현재재고
-      // (이전 기록이 없으면 소진량을 '-' 로 표시)
       const consumedQty = (prevRemain !== null) ? (prevRemain - remainQty) : null;
 
-      // KST 현재 시각
-      const timeStr = getTimeKST();
-
-      // 새 행 추가: [날짜, 품목명, 현재재고, 소진량, 입고량, 기록시각]
       sheet.appendRow([
         date,
         itemName,
         remainQty,
-        consumedQty !== null ? consumedQty : '',   // 이전 기록 없으면 빈 칸
+        consumedQty !== null ? consumedQty : '',
         inboundQty,
         timeStr
       ]);
