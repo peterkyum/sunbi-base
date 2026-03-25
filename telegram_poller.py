@@ -88,19 +88,20 @@ def main():
     today = now.strftime('%Y-%m-%d')
     yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
 
-    prev_map = get_prev_stocks(today)
-
     for update in data['result']:
         msg = update.get('message', {})
         if msg.get('chat', {}).get('id') == int(CHAT_ID) and msg.get('text'):
             stocks, inbounds = parse_message(msg['text'])
             if stocks:
-                result, saved_rows = save_to_sheet(today, stocks, inbounds, prev_map)
+                result = save_to_sheet(today, stocks, inbounds)
                 if result.get('success'):
+                    saved = result.get('saved', [])
                     lines = [f'✅ <b>{today} 재고 입력 완료!</b>\n']
-                    for r in saved_rows:
-                        consumed_str = f' | 소진 {r["consumed_qty"]}박스' if r['consumed_qty'] != 0 else ''
-                        ib_str = f' | 입고 +{r["inbound_qty"]}박스' if r['inbound_qty'] > 0 else ''
+                    for r in saved:
+                        consumed = r.get('consumed_qty')
+                        ib = r.get('inbound_qty', 0)
+                        consumed_str = f' | 소진 {consumed}박스' if consumed else ''
+                        ib_str = f' | 입고 +{ib}박스' if ib and ib > 0 else ''
                         lines.append(f'• {r["item_name"]}: {r["remain_qty"]}박스{consumed_str}{ib_str}')
                     telegram_send('\n'.join(lines))
         save_last_update_id(update['update_id'])
