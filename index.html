@@ -224,12 +224,14 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="config.local.js"></script>
 <script>
 // ══════════════════════════════════════
-// Supabase 연결 설정
+// Supabase 연결 설정 (config.local.js에서 로드)
 // ══════════════════════════════════════
-const SB_URL = 'https://nhgkzquqbxbzwejzcdft.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oZ2t6cXVxYnhiendlanpjZGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjc5NzgsImV4cCI6MjA4OTgwMzk3OH0.K8CIaX3nPQ9EzBvhjpMol8Ng9i-7iM71HxboAXhx0QM';
+const _cfg = window.SUNBI_CONFIG || {};
+const SB_URL = _cfg.SB_URL || '';
+const SB_KEY = _cfg.SB_KEY || '';
 let SESSION_TOKEN = SB_KEY;
 const HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SESSION_TOKEN};
 function getHeaders(){return {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SESSION_TOKEN};}
@@ -475,7 +477,7 @@ function previewConsumed3(id, prevStock, unit){
 // 아래 두 값을 텔레그램 설정 후 입력하세요
 const TELEGRAM_BOT_TOKEN = '8624851417:AAFohaEN56XVSJ5y67c94z88gSBcOPtBOoE';
 const TELEGRAM_CHAT_ID   = '8774713020';
-const GOOGLE_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbztdLxZ9rjDMxnHCN00a2xlM9xoaZuzJJpdw4zZZM6lRQ44YeMt64qVFTjub5pzUywM/exec';
+const GOOGLE_SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzQUcBUlz_uKKi5a-WTD3doGfveaABYj-xRLHDxKhRil5CzQxWkg6U-_sg6oiz7qFDq/exec';
 
 async function sendTelegramNotification(rows, today, dailyInbound){
   if(!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN==='YOUR_BOT_TOKEN') return;
