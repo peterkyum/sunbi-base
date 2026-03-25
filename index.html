@@ -227,14 +227,15 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-100);color:var(
   </div>
 </div>
 
-<script src="config.local.js"></script>
+<script src="config.local.js" onerror="console.log('config.local.js 없음 — 기본 설정 사용')"></script>
 <script>
 // ══════════════════════════════════════
-// Supabase 연결 설정 (config.local.js에서 로드)
+// Supabase 연결 설정
+// config.local.js가 있으면 해당 값 사용, 없으면 기본값 사용
 // ══════════════════════════════════════
 const _cfg = window.SUNBI_CONFIG || {};
-const SB_URL = _cfg.SB_URL || '';
-const SB_KEY = _cfg.SB_KEY || '';
+const SB_URL = _cfg.SB_URL || 'https://nhgkzquqbxbzwejzcdft.supabase.co';
+const SB_KEY = _cfg.SB_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oZ2t6cXVxYnhiendlanpjZGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjc5NzgsImV4cCI6MjA4OTgwMzk3OH0.K8CIaX3nPQ9EzBvhjpMol8Ng9i-7iM71HxboAXhx0QM';
 let SESSION_TOKEN = SB_KEY;
 const HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SESSION_TOKEN};
 function getHeaders(){return {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SESSION_TOKEN};}
