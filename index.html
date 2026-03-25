@@ -770,22 +770,43 @@ async function renderOrder(){
       });
     }
 
-    // ── 이번달 현재까지 사용량 (참고용) ──
+    // ── 이번달 현재까지 사용량 + 일별 소진량(fallback용) ──
     const curMonthStart=`${currentMonth}-01`;
-    const curRows = await sbGet('stocks',`date=gte.${curMonthStart}&select=date,item_id,remain_qty&order=date.asc`);
+    const curRows = await sbGet('stocks',`date=gte.${curMonthStart}&select=date,item_id,remain_qty,consumed_qty&order=date.asc`);
     const curDateSet=[...new Set(curRows.map(r=>r.date))].sort();
     const curFirstMap={};
     if(curDateSet.length>0){
       curRows.filter(r=>r.date===curDateSet[0]).forEach(r=>{curFirstMap[r.item_id]=r.remain_qty;});
     }
+    // 이번달 일별 소진량 합계 (fallback 추정용)
+    const curConsumedMap={}; // item_id → 이번달 누적 소진량
+    curRows.forEach(r=>{
+      if(r.consumed_qty>0){
+        curConsumedMap[r.item_id]=(curConsumedMap[r.item_id]||0)+r.consumed_qty;
+      }
+    });
+    const curDays=curDateSet.length||1; // 데이터가 있는 일수
 
     // ── HTML 생성 ──
     let html=`<div class="adj-banner">📊 <strong>실사용량 기반 발주 분석</strong><br>최근 완료된 달의 <strong>월초 재고 + 입고 - 월말 재고</strong> = 월 사용량을 계산해 발주 수량을 제안합니다. (안전재고 +15% 포함)</div>`;
 
     ITEMS.forEach(it=>{
       const usages=monthlyUsage[it.id];
-      const avgUsage=usages.length>0?Math.round(usages.reduce((a,u)=>a+u.usage,0)/usages.length):null;
       const current=todayMap[it.id]!==undefined?todayMap[it.id]:null;
+
+      // 월별 완료 데이터가 있으면 평균, 없으면 이번달 일별 소진 기반 추정
+      let avgUsage=null, recLabel='', isFallback=false;
+      if(usages.length>0){
+        avgUsage=Math.round(usages.reduce((a,u)=>a+u.usage,0)/usages.length);
+        recLabel='평균 사용량 × 1.15 - 현재 재고';
+      } else if(curConsumedMap[it.id]>0){
+        // fallback: 이번달 일평균 소진 × 30일로 추정
+        const dailyAvg=curConsumedMap[it.id]/curDays;
+        avgUsage=Math.round(dailyAvg*30);
+        recLabel=`이번달 ${curDays}일 소진 기반 추정 (일평균 ${Math.round(dailyAvg*10)/10}${it.unit}/일 × 30)`;
+        isFallback=true;
+      }
+
       const rec=avgUsage!==null?Math.max(0,Math.ceil(avgUsage*(1+SAFETY)-(current??0))):null;
 
       // 이번달 현재까지 사용량
@@ -793,7 +814,7 @@ async function renderOrder(){
       const curIb=(ibMap[currentMonth]||{})[it.id]||0;
       const curUsedSoFar=(curStart!==undefined&&current!==null)?curStart+curIb-current:null;
 
-      const noData=usages.length===0;
+      const noData=usages.length===0&&!curConsumedMap[it.id];
       html+=`<div class="order-item">
         <div class="order-top">
           <span class="order-name">${it.name}</span>
@@ -801,9 +822,12 @@ async function renderOrder(){
             ${rec!==null?rec+it.unit:(noData?'데이터 부족':'—')}
           </span>
         </div>
-        <div style="font-size:11px;color:var(--gray-600);margin-bottom:8px">이번 달 추천 발주량 (평균 사용량 × 1.15 - 현재 재고)</div>
+        <div style="font-size:11px;color:var(--gray-600);margin-bottom:8px">
+          ${recLabel||'이번 달 추천 발주량'}
+          ${isFallback?'<span style="color:var(--yellow,#b45309);font-weight:700"> ⚠️ 추정값 (1개월 완료 데이터 누적 후 정확도 향상)</span>':''}
+        </div>
         <div class="order-detail">
-          <div><div class="od-label">평균 월 사용량</div><div class="od-val">${avgUsage!==null?avgUsage+it.unit:'미산출'}</div></div>
+          <div><div class="od-label">${isFallback?'추정 월 사용량':'평균 월 사용량'}</div><div class="od-val">${avgUsage!==null?avgUsage+it.unit:'미산출'}</div></div>
           <div><div class="od-label">현재 재고</div><div class="od-val">${current!==null?current+it.unit:'미입력'}</div></div>
           <div><div class="od-label">이번달 현재까지 소진</div><div class="od-val">${curUsedSoFar!==null?curUsedSoFar+it.unit:'—'}</div></div>
         </div>
@@ -832,14 +856,13 @@ async function renderOrder(){
     });
 
     const hasAnyRec=ITEMS.some(it=>{
-      const usages=monthlyUsage[it.id];
-      return usages.length>0;
+      return monthlyUsage[it.id].length>0||curConsumedMap[it.id]>0;
     });
 
     if(hasAnyRec){
       html+=`<button class="btn-main" id="orderBtn" onclick="confirmOrder()">발주 확정하기</button>`;
     } else {
-      html+=`<div class="alert alert-blue"><div class="dot dot-blue"></div>월초·월말 재고 데이터가 쌓이면 자동으로 발주 분석이 시작돼요. 최소 1개월치 데이터가 필요합니다.</div>`;
+      html+=`<div class="alert alert-blue"><div class="dot dot-blue"></div>재고 입력이 쌓이면 자동으로 발주 분석이 시작돼요. 며칠치 데이터만 있어도 추정값을 제공합니다.</div>`;
     }
 
     // 발주 히스토리
