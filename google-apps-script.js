@@ -76,6 +76,7 @@ function doPost(e) {
       });
     }
 
+    SpreadsheetApp.flush();
     return jsonResponse({ success: true, saved });
 
   } catch (err) {
