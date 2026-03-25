@@ -661,11 +661,13 @@ async function renderDash(){
     });
     html+=`</div>`;
 
+    const isHQ = currentRole==='hq';
     html+=`<div class="card"><div class="card-title">전체 현황</div><div style="overflow-x:auto"><table class="tbl">
-      <thead><tr><th>품목</th><th>현재</th><th>소진</th><th>상태</th></tr></thead><tbody>`;
+      <thead><tr><th>품목</th><th>현재</th><th>소진</th><th>상태</th>${isHQ?'<th>관리</th>':''}</tr></thead><tbody>`;
     statuses.forEach(s=>{
       const badge=s.danger?'<span class="badge badge-red">위험</span>':s.warning?'<span class="badge badge-amber">주의</span>':'<span class="badge badge-green">정상</span>';
-      html+=`<tr><td style="font-weight:700">${s.name}</td><td>${s.current!==null?s.current+s.unit:'미입력'}</td><td>${s.consumed!==null?s.consumed+s.unit:'—'}</td><td>${badge}</td></tr>`;
+      const actions=isHQ&&s.current!==null?`<td><div class="hq-actions"><button class="btn-edit" onclick="hqEdit('${s.id}','${s.name}',${s.current})">수정</button><button class="btn-del" onclick="hqDelete('${s.id}','${s.name}')">삭제</button></div></td>`:(isHQ?'<td>—</td>':'');
+      html+=`<tr><td style="font-weight:700">${s.name}</td><td id="td-cur-${s.id}">${s.current!==null?s.current+s.unit:'미입력'}</td><td>${s.consumed!==null?s.consumed+s.unit:'—'}</td><td>${badge}</td>${actions}</tr>`;
     });
     html+=`</tbody></table></div></div>`;
 
