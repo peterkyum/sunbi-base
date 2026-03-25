@@ -596,8 +596,8 @@ async function submitStocks(){
         date:today,
         item_id:it.id,
         item_name:it.name,
-        remain_qty:val,
-        consumed_qty:theory-val,
+        remain_qty:val+todayIb,
+        consumed_qty:prev-val,
         submitted_by:'유통사담당자'
       };
     });
