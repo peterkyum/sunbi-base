@@ -30,7 +30,9 @@ function doPost(e) {
       return jsonResponse({ success: false, error: 'rows is empty' });
     }
 
-    const ss    = SpreadsheetApp.getActiveSpreadsheet();
+    const ss    = payload.spreadsheetId
+                ? SpreadsheetApp.openById(payload.spreadsheetId)
+                : SpreadsheetApp.getActiveSpreadsheet();
     const sheet = getOrCreateSheet(ss);
 
     // 헤더가 없으면 추가
