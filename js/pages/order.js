@@ -100,6 +100,10 @@ const OrderPage = (() => {
 
         const rec = avgUsage !== null ? Math.max(0, Math.ceil(avgUsage * (1 + Items.SAFETY) - (current ?? 0))) : null;
 
+        if (rec !== null && rec > 0) {
+          lastOrderData.push({ item_name: it.name, order_qty: rec, current_qty: current ?? 0, avg_usage: avgUsage, unit: it.unit });
+        }
+
         const curStart = curFirstMap[it.id];
         const curIb = (ibMap[currentMonth] || {})[it.id] || 0;
         const curUsedSoFar = (curStart !== undefined && current !== null) ? curStart + curIb - current : null;
