@@ -66,6 +66,19 @@ function doPost(e) {
       return jsonResponse({ success: true, action: 'edit' });
     }
 
+    // ── 재고 조정 기록 ──
+    if (action === 'adjust') {
+      for (const row of rows) {
+        const itemName = String(row.item_name || '').trim();
+        const remainQty = Number(row.remain_qty) || 0;
+        const consumedQty = Number(row.consumed_qty) || 0;
+        if (!itemName) continue;
+        sheet.appendRow([date, itemName, remainQty, '[조정] ' + consumedQty, '', timeStr + ' 본사조정']);
+      }
+      SpreadsheetApp.flush();
+      return jsonResponse({ success: true, action: 'adjust' });
+    }
+
     // ── 일반 재고 기록 ──
     const saved = [];
     for (const row of rows) {
