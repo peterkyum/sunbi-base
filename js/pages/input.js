@@ -154,12 +154,7 @@ const InputPage = (() => {
     const month = UI.thisMonth();
     const btn = UI.$('submitBtn');
 
-    let allFilled = true;
-    ITEMS.forEach(it => {
-      const el = UI.$('inp-' + it.id);
-      if (!el || el.value === '') allFilled = false;
-    });
-    if (!allFilled) { alert('모든 품목의 현재 재고를 입력해 주세요!'); return; }
+    // 빈칸은 전일 재고를 그대로 사용 (변동 없음)
 
     btn.disabled = true;
     btn.textContent = '저장 중...';
