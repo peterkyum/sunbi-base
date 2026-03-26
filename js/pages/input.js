@@ -98,10 +98,10 @@ const InputPage = (() => {
           </div>
           <div>
             <div class="input-label">현재 재고 입력</div>
-            <input class="qty-input" type="number" inputmode="numeric" placeholder="${prevStock ?? 0}" min="0"
+            <input class="qty-input" type="number" inputmode="numeric" placeholder="변동없으면 비워두세요" min="0"
               id="inp-${it.id}" value=""
-              oninput="previewConsumed3('${it.id}',${prevStock ?? 0},'${it.unit}')">
-            ${prevStock !== null ? `<div style="font-size:10px;color:var(--gray-600);text-align:center;margin-top:2px">비우면 전일값 유지</div>` : ''}
+              oninput="previewConsumed3('${it.id}',${prevStock ?? 0},'${it.unit}')"
+              style="font-size:13px">
           </div>
         </div>
         <div class="consumed-preview" id="prev-${it.id}" style="display:none">
