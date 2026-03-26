@@ -18,6 +18,17 @@ function doPost(e) {
     const rows    = payload.rows  || [];
     const action  = payload.action || 'record';
 
+    // ── 월별집계 수동 갱신 ──
+    if (action === 'refresh') {
+      const ss2 = payload.spreadsheetId
+                ? SpreadsheetApp.openById(payload.spreadsheetId)
+                : SpreadsheetApp.getActiveSpreadsheet();
+      const sheet2 = ss2.getSheetByName(SHEET_NAME);
+      if (!sheet2) return jsonResponse({ success: false, error: 'no record sheet' });
+      updateSummary(ss2, sheet2);
+      return jsonResponse({ success: true, action: 'refresh' });
+    }
+
     if (!rows.length) {
       return jsonResponse({ success: false, error: 'rows is empty' });
     }
