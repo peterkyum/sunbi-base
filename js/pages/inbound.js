@@ -90,6 +90,34 @@ const InboundPage = (() => {
     }
   }
 
+  function resetAvg(idx) {
+    if (!confirm('월 평균 사용량을 0으로 초기화할까요?')) return;
+    const items = Items.load();
+    items[idx] = { ...items[idx], monthAvg: 0 };
+    Items.save(items);
+    render();
+  }
+
+  function editAvg(idx) {
+    const td = UI.$('avg-td-' + idx);
+    if (!td) return;
+    const items = Items.load();
+    const current = items[idx].monthAvg;
+    td.innerHTML = `<input type="number" inputmode="numeric" value="${current}" id="avg-inp-${idx}" style="width:50px;border:1.5px solid var(--blue);border-radius:6px;padding:3px 5px;font-size:12px;text-align:center">
+      <button onclick="InboundPage.saveAvg(${idx})" style="border:none;background:var(--blue);color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-left:4px">저장</button>`;
+    UI.$('avg-inp-' + idx).focus();
+  }
+
+  function saveAvg(idx) {
+    const inp = UI.$('avg-inp-' + idx);
+    if (!inp) return;
+    const val = Math.max(0, parseInt(inp.value) || 0);
+    const items = Items.load();
+    items[idx] = { ...items[idx], monthAvg: val };
+    Items.save(items);
+    render();
+  }
+
   function deleteItem(idx) {
     if (!confirm('이 품목을 삭제할까요?')) return;
     Items.remove(idx);
