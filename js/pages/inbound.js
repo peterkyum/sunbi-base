@@ -48,8 +48,13 @@ const InboundPage = (() => {
         <thead><tr><th>품목명</th><th>단위</th><th>월평균</th><th></th></tr></thead><tbody>`;
       ITEMS.forEach((it, idx) => {
         html += `<tr>
-          <td style="font-weight:700">${it.name}</td><td>${it.unit}</td><td>${it.monthAvg}</td>
-          <td><button onclick="InboundPage.deleteItem(${idx})" style="border:none;background:var(--red-light);color:var(--red);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">삭제</button></td>
+          <td style="font-weight:700">${it.name}</td><td>${it.unit}</td>
+          <td id="avg-td-${idx}">${it.monthAvg}</td>
+          <td style="white-space:nowrap">
+            <button onclick="InboundPage.editAvg(${idx})" style="border:none;background:var(--blue-light);color:var(--blue);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">수정</button>
+            <button onclick="InboundPage.resetAvg(${idx})" style="border:none;background:var(--amber-light);color:var(--amber);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">초기화</button>
+            <button onclick="InboundPage.deleteItem(${idx})" style="border:none;background:var(--red-light);color:var(--red);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">삭제</button>
+          </td>
         </tr>`;
       });
       html += `</tbody></table></div>`;
