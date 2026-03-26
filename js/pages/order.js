@@ -174,13 +174,16 @@ const OrderPage = (() => {
   }
 
   async function confirm() {
-    const ITEMS = Items.load();
+    if (!lastOrderData.length) { alert('발주할 품목이 없어요.'); return; }
     const btn = UI.$('orderBtn');
     btn.disabled = true;
     btn.textContent = '저장 중...';
+    const today = UI.todayISO();
     try {
-      await Api.insert('orders', { order_date: UI.todayISO(), item_count: ITEMS.length });
-      alert('발주가 확정됐어요!');
+      await Api.insert('orders', { order_date: today, item_count: lastOrderData.length });
+      await Notify.sendOrderToSheet(lastOrderData, today);
+      await Notify.sendOrderTelegram(lastOrderData, today);
+      alert('발주가 확정됐어요! 시트 기록 + 텔레그램 알림 완료');
       render();
     } catch (e) {
       alert('저장 오류: ' + e.message);
