@@ -72,5 +72,17 @@ const Notify = (() => {
     });
   }
 
-  return { telegram, sendStockToSheet, sendDeleteLog, sendEditLog };
+  async function sendAdjustLog(adjustedRows, date) {
+    await googleSheet({
+      action: 'adjust',
+      date,
+      rows: adjustedRows.map(r => ({
+        item_name: r.item_name,
+        remain_qty: r.remain_qty,
+        consumed_qty: r.consumed_qty
+      }))
+    });
+  }
+
+  return { telegram, sendStockToSheet, sendDeleteLog, sendEditLog, sendAdjustLog };
 })();
