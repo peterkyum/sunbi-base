@@ -11,7 +11,7 @@ window.SUNBI_CONFIG = {
   TELEGRAM_CHAT_ID: '8774713020',
 
   // Google Apps Script (웹 UI → 구글 시트 백업용)
-  SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw4lnvWTj2BoTJV5ULLpAVAb77lDIhX_oMEOOmcd-5AYG4lp01AKf_Ek11tRcjsmEu7/exec',
+  SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxF8dHwOId2dBbD-ElwuminE6bEoopCo3p58YldxYgWuiBOBhdtWSHh3hMSv0xXZoUemw/exec',
   SPREADSHEET_ID: '1ZSz3IAa8B--i4wSixq6gDkEUb4s-OV9j-C2HAl4sKAM',
 
 };
