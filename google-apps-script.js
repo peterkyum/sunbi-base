@@ -66,6 +66,27 @@ function doPost(e) {
       return jsonResponse({ success: true, action: 'edit' });
     }
 
+    // ── 발주 기록 ──
+    if (action === 'order') {
+      const orderSheet = getOrCreateSheet(ss, '발주기록');
+      if (orderSheet.getLastRow() === 0) {
+        orderSheet.appendRow(['발주일', '품목명', '발주수량', '현재재고', '월평균사용량', '기록시각']);
+        const hr = orderSheet.getRange(1, 1, 1, 6);
+        hr.setFontWeight('bold').setBackground('#2D5A8E').setFontColor('#ffffff');
+        orderSheet.setFrozenRows(1);
+      }
+      for (const row of rows) {
+        const itemName = String(row.item_name || '').trim();
+        const orderQty = Number(row.order_qty) || 0;
+        const currentQty = Number(row.current_qty) || 0;
+        const avgUsage = Number(row.avg_usage) || 0;
+        if (!itemName) continue;
+        orderSheet.appendRow([date, itemName, orderQty, currentQty, avgUsage, timeStr]);
+      }
+      SpreadsheetApp.flush();
+      return jsonResponse({ success: true, action: 'order', count: rows.length });
+    }
+
     // ── 재고 조정 기록 ──
     if (action === 'adjust') {
       for (const row of rows) {
