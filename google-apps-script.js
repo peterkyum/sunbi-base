@@ -2,23 +2,14 @@
 // 선비칼국수 재고관리 - Google Apps Script
 // 기능: POST 요청을 받아 '재고기록' 시트에 누적 기록
 //       이전 현재재고 - 이번 현재재고 = 소진량 자동 계산
+//       매 기록 후 '월별집계' 시트를 자동 갱신
 // ══════════════════════════════════════════════════════════════
 
 const SHEET_NAME = '재고기록';
+const SUMMARY_SHEET = '월별집계';
 
 /**
  * HTTP POST 엔드포인트
- * index.html 의 sendToGoogleSheet() 또는 telegram_poller.py 에서 호출
- *
- * 예상 payload:
- * {
- *   "spreadsheetId": "...",   // optional, 배포된 스크립트 자신의 시트를 사용
- *   "date": "2026-03-25",
- *   "rows": [
- *     { "item_name": "비빔장소스", "remain_qty": 50, "consumed_qty": 5, "inbound_qty": 0 },
- *     ...
- *   ]
- * }
  */
 function doPost(e) {
   try {
@@ -34,7 +25,7 @@ function doPost(e) {
     const ss    = payload.spreadsheetId
                 ? SpreadsheetApp.openById(payload.spreadsheetId)
                 : SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = getOrCreateSheet(ss);
+    const sheet = getOrCreateSheet(ss, SHEET_NAME);
 
     ensureHeader(sheet);
     const timeStr = getTimeKST();
@@ -94,6 +85,14 @@ function doPost(e) {
     }
 
     SpreadsheetApp.flush();
+
+    // 월별집계 자동 갱신
+    try {
+      updateSummary(ss, sheet);
+    } catch (err) {
+      // 집계 실패해도 기록은 성공으로 처리
+    }
+
     return jsonResponse({ success: true, saved });
 
   } catch (err) {
@@ -101,10 +100,21 @@ function doPost(e) {
   }
 }
 
-// ── GET 핸들러 (배포 테스트용) ──────────────────────────────
+// ── GET 핸들러 ──────────────────────────────────────────────
 function doGet(e) {
   try {
     const action = e && e.parameter && e.parameter.action;
+
+    // 집계 수동 실행
+    if (action === 'refresh') {
+      const sid = e.parameter.sid;
+      const ss = sid ? SpreadsheetApp.openById(sid) : SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(SHEET_NAME);
+      if (!sheet) return jsonResponse({ error: 'no sheet' });
+      updateSummary(ss, sheet);
+      return jsonResponse({ success: true, message: '월별집계 갱신 완료' });
+    }
+
     if (action === 'debug') {
       const sid = e.parameter.sid;
       const ss = sid ? SpreadsheetApp.openById(sid) : SpreadsheetApp.getActiveSpreadsheet();
@@ -121,89 +131,229 @@ function doGet(e) {
   return jsonResponse({ status: 'ok', message: '선비칼국수 재고관리 API 정상 작동 중' });
 }
 
-// ── 헬퍼 함수들 ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// 월별집계 자동 생성
+// ══════════════════════════════════════════════════════════════
 
 /**
- * '재고기록' 시트를 가져오거나 없으면 생성
+ * '재고기록' 원시 데이터를 분석하여 '월별집계' 시트를 자동 갱신
+ *
+ * 집계 내용:
+ * - 월별 품목별 입고수량
+ * - 월별 품목별 소진량(누적 사용량)
+ * - 월별 품목별 월말 재고
  */
-function getOrCreateSheet(ss) {
-  let sheet = ss.getSheetByName(SHEET_NAME);
+function updateSummary(ss, recordSheet) {
+  const lastRow = recordSheet.getLastRow();
+  if (lastRow <= 1) return;
+
+  // 전체 데이터 읽기 (헤더 제외)
+  const data = recordSheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  // [날짜, 품목명, 현재재고, 소진량, 입고량, 기록시각]
+
+  // 월별 품목별 집계
+  const months = {};    // { '2026-03': { '비빔장소스': { inbound, consumed, lastRemain, lastDate } } }
+  const itemSet = {};   // 전체 품목 목록
+
+  for (const row of data) {
+    const dateStr = String(row[0]).trim();
+    const itemName = String(row[1]).trim();
+    const remain = row[2];
+    const consumed = row[3];
+    const inbound = row[4];
+
+    if (!dateStr || !itemName) continue;
+    // 삭제/수정 기록은 집계에서 제외
+    if (String(remain).includes('삭제') || String(consumed).includes('수정')) continue;
+
+    const month = dateStr.slice(0, 7); // 'YYYY-MM'
+    if (!months[month]) months[month] = {};
+    if (!months[month][itemName]) {
+      months[month][itemName] = { inbound: 0, consumed: 0, lastRemain: 0, lastDate: '' };
+    }
+
+    const entry = months[month][itemName];
+    const numRemain = Number(remain) || 0;
+    const numConsumed = Number(consumed) || 0;
+    const numInbound = Number(inbound) || 0;
+
+    entry.inbound += numInbound;
+    if (numConsumed > 0) entry.consumed += numConsumed;
+
+    // 가장 최근 날짜의 재고를 월말 재고로 사용
+    if (dateStr >= entry.lastDate) {
+      entry.lastRemain = numRemain;
+      entry.lastDate = dateStr;
+    }
+
+    itemSet[itemName] = true;
+  }
+
+  // 정렬
+  const sortedMonths = Object.keys(months).sort();
+  const sortedItems = Object.keys(itemSet).sort();
+
+  if (sortedMonths.length === 0 || sortedItems.length === 0) return;
+
+  // 집계 시트 생성/초기화
+  let sumSheet = ss.getSheetByName(SUMMARY_SHEET);
+  if (!sumSheet) {
+    sumSheet = ss.insertSheet(SUMMARY_SHEET);
+  } else {
+    sumSheet.clear();
+  }
+
+  // ── 섹션 1: 월별 품목별 입고수량 ──
+  let row = 1;
+  sumSheet.getRange(row, 1).setValue('[ 월별 품목별 입고수량 ]')
+    .setFontWeight('bold').setFontSize(12).setFontColor('#0C447C');
+  row++;
+
+  // 헤더: 월 | 품목1 | 품목2 | ...
+  const header1 = ['월'].concat(sortedItems);
+  sumSheet.getRange(row, 1, 1, header1.length).setValues([header1])
+    .setFontWeight('bold').setBackground('#E6F1FB');
+  row++;
+
+  for (const m of sortedMonths) {
+    const vals = [m];
+    for (const item of sortedItems) {
+      vals.push(months[m][item] ? months[m][item].inbound : 0);
+    }
+    sumSheet.getRange(row, 1, 1, vals.length).setValues([vals]);
+    row++;
+  }
+
+  row += 2;
+
+  // ── 섹션 2: 월별 품목별 소진량 (누적 사용량) ──
+  sumSheet.getRange(row, 1).setValue('[ 월별 품목별 소진량 (누적 사용량) ]')
+    .setFontWeight('bold').setFontSize(12).setFontColor('#A32D2D');
+  row++;
+
+  const header2 = ['월'].concat(sortedItems).concat(['합계']);
+  sumSheet.getRange(row, 1, 1, header2.length).setValues([header2])
+    .setFontWeight('bold').setBackground('#FCEBEB');
+  row++;
+
+  // 누적 합계용
+  const totalConsumed = {};
+  sortedItems.forEach(item => { totalConsumed[item] = 0; });
+
+  for (const m of sortedMonths) {
+    const vals = [m];
+    let rowTotal = 0;
+    for (const item of sortedItems) {
+      const c = months[m][item] ? months[m][item].consumed : 0;
+      vals.push(c);
+      totalConsumed[item] += c;
+      rowTotal += c;
+    }
+    vals.push(rowTotal);
+    sumSheet.getRange(row, 1, 1, vals.length).setValues([vals]);
+    row++;
+  }
+
+  // 월평균 행
+  const avgRow = ['월평균'];
+  let avgTotal = 0;
+  const monthCount = sortedMonths.length || 1;
+  for (const item of sortedItems) {
+    const avg = Math.round(totalConsumed[item] / monthCount);
+    avgRow.push(avg);
+    avgTotal += avg;
+  }
+  avgRow.push(avgTotal);
+  sumSheet.getRange(row, 1, 1, avgRow.length).setValues([avgRow])
+    .setFontWeight('bold').setBackground('#FAF0E4');
+  row += 2;
+
+  // ── 섹션 3: 월별 품목별 월말 재고 ──
+  sumSheet.getRange(row, 1).setValue('[ 월별 품목별 월말 재고 ]')
+    .setFontWeight('bold').setFontSize(12).setFontColor('#7B4A1E');
+  row++;
+
+  const header3 = ['월'].concat(sortedItems);
+  sumSheet.getRange(row, 1, 1, header3.length).setValues([header3])
+    .setFontWeight('bold').setBackground('#FAF0E4');
+  row++;
+
+  for (const m of sortedMonths) {
+    const vals = [m];
+    for (const item of sortedItems) {
+      vals.push(months[m][item] ? months[m][item].lastRemain : '-');
+    }
+    sumSheet.getRange(row, 1, 1, vals.length).setValues([vals]);
+    row++;
+  }
+
+  // 스타일 정리
+  sumSheet.setColumnWidth(1, 100);
+  for (let c = 2; c <= sortedItems.length + 2; c++) {
+    sumSheet.setColumnWidth(c, 110);
+  }
+  sumSheet.setFrozenColumns(1);
+
+  SpreadsheetApp.flush();
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// 헬퍼 함수들
+// ══════════════════════════════════════════════════════════════
+
+function getOrCreateSheet(ss, name) {
+  let sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
+    sheet = ss.insertSheet(name);
   }
   return sheet;
 }
 
-/**
- * 헤더 행이 없으면 첫 행에 추가
- */
 function ensureHeader(sheet) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(['날짜', '품목명', '현재재고', '소진량', '입고량', '기록시각']);
-
-    // 헤더 스타일 꾸미기
     const headerRange = sheet.getRange(1, 1, 1, 6);
     headerRange.setFontWeight('bold');
     headerRange.setBackground('#4A7C59');
     headerRange.setFontColor('#ffffff');
     sheet.setFrozenRows(1);
-
-    // 컬럼 너비 조정
-    sheet.setColumnWidth(1, 110);  // 날짜
-    sheet.setColumnWidth(2, 140);  // 품목명
-    sheet.setColumnWidth(3,  90);  // 현재재고
-    sheet.setColumnWidth(4,  90);  // 소진량
-    sheet.setColumnWidth(5,  80);  // 입고량
-    sheet.setColumnWidth(6, 100);  // 기록시각
+    sheet.setColumnWidth(1, 110);
+    sheet.setColumnWidth(2, 140);
+    sheet.setColumnWidth(3,  90);
+    sheet.setColumnWidth(4,  90);
+    sheet.setColumnWidth(5,  80);
+    sheet.setColumnWidth(6, 100);
   }
 }
 
-/**
- * 시트를 역순으로 탐색하여 같은 품목의 직전 '현재재고'를 반환
- * 없으면 null 반환
- * 
- * 컬럼 순서: [날짜(1), 품목명(2), 현재재고(3), 소진량(4), 입고량(5), 기록시각(6)]
- */
 function findPrevRemain(sheet, itemName) {
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return null;  // 헤더만 있거나 비어 있음
-
-  // B열(품목명)과 C열(현재재고)를 한 번에 가져옴 (헤더 제외, 2행부터)
+  if (lastRow <= 1) return null;
   const dataRange = sheet.getRange(2, 2, lastRow - 1, 2);
-  const values    = dataRange.getValues();  // [[품목명, 현재재고], ...]
-
-  // 역순으로 탐색 → 가장 최근 행부터
+  const values    = dataRange.getValues();
   for (let i = values.length - 1; i >= 0; i--) {
     const name  = String(values[i][0]).trim();
     const qty   = values[i][1];
-    if (name === itemName && qty !== '' && qty !== null) {
+    if (name === itemName && qty !== '' && qty !== null && !String(qty).includes('삭제')) {
       return Number(qty);
     }
   }
-  return null;  // 이전 기록 없음
+  return null;
 }
 
-/**
- * KST 기준 오늘 날짜 반환 (YYYY-MM-DD)
- */
 function getTodayKST() {
   const now = new Date();
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   return Utilities.formatDate(kst, 'UTC', 'yyyy-MM-dd');
 }
 
-/**
- * KST 기준 현재 시각 반환 (HH:mm)
- */
 function getTimeKST() {
   const now = new Date();
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   return Utilities.formatDate(kst, 'UTC', 'HH:mm');
 }
 
-/**
- * JSON ContentService 응답 생성
- */
 function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
