@@ -189,6 +189,7 @@ const DashPage = (() => {
       stockRows.forEach(r => stockMap[r.item_id] = r.remain_qty);
       prevRows.forEach(r => prevMap[r.item_id] = r.remain_qty);
       ibRows.forEach(r => ibMapAdj[r.item_id] = r.qty);
+      const adjustedRows = [];
       for (const it of ITEMS) {
         const remain = stockMap[it.id];
         if (remain === undefined) continue;
@@ -196,7 +197,9 @@ const DashPage = (() => {
         const ib = ibMapAdj[it.id] || 0;
         const consumed = (prev + ib) - remain;
         await Api.patch('stocks', `date=eq.${yISO}&item_id=eq.${it.id}`, { remain_qty: remain, consumed_qty: consumed, submitted_by: '본사조정' });
+        adjustedRows.push({ item_name: it.name, remain_qty: remain, consumed_qty: consumed });
       }
+      Notify.sendAdjustLog(adjustedRows, yISO);
       alert(`${yISO} 재고 반영 완료`);
       render();
     } catch (e) { alert('오류: ' + e.message); }
