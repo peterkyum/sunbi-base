@@ -45,19 +45,22 @@ const InboundPage = (() => {
 
       html += `<div class="section-label">등록된 품목 목록 (${ITEMS.length}개)</div>
       <div class="card"><table class="tbl">
-        <thead><tr><th>품목명</th><th>단위</th><th>월평균</th><th></th></tr></thead><tbody>`;
+        <thead><tr><th><input type="checkbox" id="chk-all" onchange="InboundPage.toggleAll(this.checked)"></th><th>품목명</th><th>단위</th><th>월평균</th><th></th></tr></thead><tbody>`;
       ITEMS.forEach((it, idx) => {
         html += `<tr>
+          <td><input type="checkbox" class="item-chk" data-idx="${idx}"></td>
           <td style="font-weight:700">${it.name}</td><td>${it.unit}</td>
           <td id="avg-td-${idx}">${it.monthAvg}</td>
           <td style="white-space:nowrap">
             <button onclick="InboundPage.editAvg(${idx})" style="border:none;background:var(--blue-light);color:var(--blue);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">수정</button>
-            <button onclick="InboundPage.resetAvg(${idx})" style="border:none;background:var(--amber-light);color:var(--amber);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">초기화</button>
             <button onclick="InboundPage.deleteItem(${idx})" style="border:none;background:var(--red-light);color:var(--red);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">삭제</button>
           </td>
         </tr>`;
       });
-      html += `</tbody></table></div>`;
+      html += `</tbody></table>
+      <div style="margin-top:10px;text-align:right">
+        <button onclick="InboundPage.resetSelected()" style="border:none;background:var(--amber-light);color:var(--amber);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">선택 항목 월평균 초기화</button>
+      </div></div>`;
 
       UI.$('inboundMain').innerHTML = html;
     } catch (e) {
