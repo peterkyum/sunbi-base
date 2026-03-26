@@ -1,7 +1,18 @@
-const CACHE_NAME = 'sunbi-v1';
+const CACHE_NAME = 'sunbi-v4';
 const ASSETS = [
   './',
   './index.html',
+  './css/style.css',
+  './js/api.js',
+  './js/auth.js',
+  './js/ui.js',
+  './js/items.js',
+  './js/notify.js',
+  './js/pages/input.js',
+  './js/pages/dashboard.js',
+  './js/pages/order.js',
+  './js/pages/inbound.js',
+  './js/app.js',
   './config.local.js',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap'
