@@ -84,5 +84,42 @@ const Notify = (() => {
     });
   }
 
-  return { telegram, sendStockToSheet, sendDeleteLog, sendEditLog, sendAdjustLog };
+  async function sendOrderToSheet(orderRows, date) {
+    await googleSheet({
+      action: 'order',
+      date,
+      rows: orderRows.map(r => ({
+        item_name: r.item_name,
+        order_qty: r.order_qty,
+        current_qty: r.current_qty,
+        avg_usage: r.avg_usage
+      }))
+    });
+  }
+
+  async function sendOrderTelegram(orderRows, date) {
+    const token = cfg().TELEGRAM_TOKEN;
+    const chatId = cfg().TELEGRAM_CHAT_ID;
+    if (!token || !chatId) return;
+
+    try {
+      const d = new Date(date + 'T00:00:00');
+      const dateStr = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+      const lines = orderRows.map(r =>
+        `• <b>${r.item_name}</b>  ${r.order_qty}${r.unit} (현재 ${r.current_qty}${r.unit}, 월평균 ${r.avg_usage}${r.unit})`
+      ).join('\n');
+      const total = orderRows.reduce((a, r) => a + r.order_qty, 0);
+      const text = `📋 <b>[선비칼국수] ${dateStr} 발주 확정</b>\n\n${lines}\n\n📦 총 ${orderRows.length}개 품목 / ${total}박스\n✅ 본사에서 발주를 확정했어요.`;
+
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+      });
+    } catch (e) {
+      // 알림 실패는 주요 기능에 영향 없음
+    }
+  }
+
+  return { telegram, sendStockToSheet, sendDeleteLog, sendEditLog, sendAdjustLog, sendOrderToSheet, sendOrderTelegram };
 })();
