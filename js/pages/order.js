@@ -2,8 +2,10 @@
 // 3. 자동 발주 페이지
 // ══════════════════════════════════════
 const OrderPage = (() => {
+  let lastOrderData = []; // 분석 결과 저장 (확정 시 사용)
 
   async function render() {
+    lastOrderData = [];
     UI.loading('orderMain');
     const ITEMS = Items.load();
     const today = UI.todayISO();
