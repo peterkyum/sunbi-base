@@ -98,13 +98,14 @@ function doPost(e) {
     SpreadsheetApp.flush();
 
     // 월별집계 자동 갱신
+    let summaryError = null;
     try {
       updateSummary(ss, sheet);
     } catch (err) {
-      // 집계 실패해도 기록은 성공으로 처리
+      summaryError = err.message;
     }
 
-    return jsonResponse({ success: true, saved });
+    return jsonResponse({ success: true, saved, summaryError });
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.message });
