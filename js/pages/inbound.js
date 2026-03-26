@@ -93,10 +93,21 @@ const InboundPage = (() => {
     }
   }
 
-  function resetAvg(idx) {
-    if (!confirm('월 평균 사용량을 0으로 초기화할까요?')) return;
+  function toggleAll(checked) {
+    document.querySelectorAll('.item-chk').forEach(c => { c.checked = checked; });
+  }
+
+  function resetSelected() {
+    const checks = document.querySelectorAll('.item-chk:checked');
+    if (checks.length === 0) { alert('초기화할 품목을 선택해 주세요.'); return; }
     const items = Items.load();
-    items[idx] = { ...items[idx], monthAvg: 0 };
+    const names = [];
+    checks.forEach(c => {
+      const idx = parseInt(c.dataset.idx);
+      names.push(items[idx].name);
+      items[idx] = { ...items[idx], monthAvg: 0 };
+    });
+    if (!confirm(`${names.join(', ')}\n\n${names.length}개 품목의 월평균을 0으로 초기화할까요?`)) return;
     Items.save(items);
     render();
   }
