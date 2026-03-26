@@ -193,10 +193,12 @@ const InputPage = (() => {
       await Api.delete('stocks', `date=eq.${today}`);
 
       const rows = ITEMS.map(it => {
-        const val = Math.max(0, parseInt(UI.$('inp-' + it.id).value) || 0);
+        const el = UI.$('inp-' + it.id);
         const ibEl = UI.$('inp-ib-' + it.id);
         const todayIb = Math.max(0, ibEl && ibEl.value !== '' ? parseInt(ibEl.value) || 0 : 0);
         const prev = prevMap[it.id] !== undefined ? Math.max(0, prevMap[it.id]) : 0;
+        // 빈칸이면 전일 재고 그대로 사용 (변동 없음)
+        const val = (el && el.value !== '') ? Math.max(0, parseInt(el.value) || 0) : prev;
         return {
           date: today,
           item_id: it.id,
