@@ -148,5 +148,5 @@ const InboundPage = (() => {
     ['newName', 'newUnit', 'newAvg', 'newInbound'].forEach(id => { UI.$(id).value = ''; });
   }
 
-  return { render, changeMonth, save, deleteItem, openAddModal, addItem, closeAddModal };
+  return { render, changeMonth, save, deleteItem, resetAvg, editAvg, saveAvg, openAddModal, addItem, closeAddModal };
 })();
