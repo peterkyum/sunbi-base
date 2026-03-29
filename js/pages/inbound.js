@@ -113,6 +113,27 @@ const InboundPage = (() => {
     render();
   }
 
+  function editName(idx) {
+    const td = UI.$('name-td-' + idx);
+    if (!td) return;
+    const items = Items.load();
+    const current = items[idx].name;
+    td.innerHTML = `<input type="text" value="${current}" id="name-inp-${idx}" style="width:80px;border:1.5px solid var(--blue);border-radius:6px;padding:3px 5px;font-size:12px">
+      <button onclick="InboundPage.saveName(${idx})" style="border:none;background:var(--blue);color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-left:4px">저장</button>`;
+    UI.$('name-inp-' + idx).focus();
+  }
+
+  function saveName(idx) {
+    const inp = UI.$('name-inp-' + idx);
+    if (!inp) return;
+    const val = inp.value.trim();
+    if (!val) { alert('품목명을 입력해 주세요.'); return; }
+    const items = Items.load();
+    items[idx] = { ...items[idx], name: val };
+    Items.save(items);
+    render();
+  }
+
   function editAvg(idx) {
     const td = UI.$('avg-td-' + idx);
     if (!td) return;
