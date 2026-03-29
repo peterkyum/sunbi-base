@@ -59,11 +59,12 @@ const DashPage = (() => {
 
       // 전체 현황 테이블
       html += `<div class="card"><div class="card-title">전체 현황</div><div style="overflow-x:auto"><table class="tbl">
-        <thead><tr><th>품목</th><th>현재</th><th>소진</th><th>상태</th>${isHQ ? '<th>관리</th>' : ''}</tr></thead><tbody>`;
+        <thead><tr><th>품목</th><th>현재</th><th>소진</th><th>잔여율</th><th>상태</th>${isHQ ? '<th>관리</th>' : ''}</tr></thead><tbody>`;
       statuses.forEach(s => {
+        const pct = Math.min(100, s.ratio ?? 0);
         const badge = s.danger ? UI.badge('red', '위험') : s.warning ? UI.badge('amber', '주의') : UI.badge('green', '정상');
         const actions = isHQ ? `<td><div class="hq-actions"><button class="btn-edit" onclick="DashPage.hqEdit('${s.id}','${s.name}',${s.current ?? 0})">수정</button>${s.current !== null ? `<button class="btn-del" onclick="DashPage.hqDelete('${s.id}','${s.name}')">삭제</button>` : ''}</div></td>` : '';
-        html += `<tr><td style="font-weight:700">${s.name}</td><td id="td-cur-${s.id}">${s.current !== null ? s.current + s.unit : '미입력'}</td><td>${s.consumed !== null ? s.consumed + s.unit : '\u2014'}</td><td>${badge}</td>${actions}</tr>`;
+        html += `<tr><td style="font-weight:700">${s.name}</td><td id="td-cur-${s.id}">${s.current !== null ? s.current + s.unit : '미입력'}</td><td>${s.consumed !== null ? s.consumed + s.unit : '\u2014'}</td><td>${s.current !== null ? pct + '%' : '\u2014'}</td><td>${badge}</td>${actions}</tr>`;
       });
       html += `</tbody></table></div>`;
       if (isHQ) {
