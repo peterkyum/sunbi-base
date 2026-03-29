@@ -24,7 +24,7 @@ const DashPage = (() => {
         const row = todayMap[it.id];
         const current = row ? Math.max(0, row.remain_qty) : null;
         const consumed = row ? Math.max(0, row.consumed_qty) : null;
-        const ratio = current !== null && it.monthAvg > 0 ? Math.round(current / it.monthAvg * 100) : null;
+        const ratio = current !== null ? Math.round(current / 100 * 100) : null;
         return { ...it, current, consumed, ratio, danger: ratio !== null && ratio < 15, warning: ratio !== null && ratio < 25 && !(ratio < 15) };
       });
 
