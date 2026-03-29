@@ -1,6 +1,6 @@
 {
   "name": "선비칼국수 재고관리",
-  "short_name": "선비칼국수",
+  "short_name": "선비칼국수 재고관리",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f5f5f3",
