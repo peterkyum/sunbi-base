@@ -49,7 +49,7 @@ const InboundPage = (() => {
       ITEMS.forEach((it, idx) => {
         html += `<tr>
           <td><input type="checkbox" class="item-chk" data-idx="${idx}"></td>
-          <td style="font-weight:700">${it.name}</td><td>${it.unit}</td>
+          <td style="font-weight:700" id="name-td-${idx}">${it.name}</td><td>${it.unit}</td>
           <td id="avg-td-${idx}">${it.monthAvg}</td>
           <td style="white-space:nowrap">
             <button onclick="InboundPage.editAvg(${idx})" style="border:none;background:var(--blue-light);color:var(--blue);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">수정</button>
