@@ -109,8 +109,15 @@ function doPost(e) {
 
       if (!itemName) continue;
 
-      const prevRemain = findPrevRemain(sheet, itemName);
-      const consumedQty = (prevRemain !== null) ? (prevRemain - remainQty) : null;
+      // 웹앱이 보낸 consumed_qty 우선 사용, 없으면 입고 감안하여 계산
+      const rowConsumed = row.consumed_qty;
+      let consumedQty;
+      if (rowConsumed !== undefined && rowConsumed !== null && rowConsumed !== '') {
+        consumedQty = Number(rowConsumed);
+      } else {
+        const prevRemain = findPrevRemain(sheet, itemName);
+        consumedQty = (prevRemain !== null) ? (prevRemain + inboundQty - remainQty) : null;
+      }
 
       sheet.appendRow([
         date,
