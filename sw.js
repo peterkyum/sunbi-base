@@ -43,8 +43,12 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 정적 파일은 캐시 우선, 없으면 네트워크
+  // 정적 파일은 네트워크 우선, 실패 시 캐시
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request).then(res => {
+      const clone = res.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+      return res;
+    }).catch(() => caches.match(e.request))
   );
 });
