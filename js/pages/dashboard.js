@@ -62,7 +62,7 @@ const DashPage = (() => {
       </div>`;
 
       // 품목별 잔여율 바 차트
-      html += `<div class="card"><div class="card-title">품목별 잔여율</div>`;
+      html += `<div class="card"><div class="card-title">품목별 재고량</div>`;
       statuses.forEach(s => {
         const pct = Math.min(100, s.ratio ?? 0);
         const color = pct < 15 ? '#E24B4A' : pct < 25 ? '#EF9F27' : '#639922';
