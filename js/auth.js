@@ -64,7 +64,13 @@ const Auth = (() => {
         if (hub && hub.access_token && hub.email) {
           Api.setToken(hub.access_token);
           currentUser = { email: hub.email };
-          currentRole = getRole(hub.email);
+          // 허브 역할 → sunbi-base 역할 매핑
+          const hubRole = (hub.role || '').toLowerCase();
+          if (hubRole === 'admin' || hubRole === 'staff') {
+            currentRole = 'hq';
+          } else {
+            currentRole = 'dist';
+          }
           try {
             localStorage.setItem('sunbi_session', JSON.stringify({
               access_token: hub.access_token,
