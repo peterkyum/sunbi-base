@@ -14,10 +14,11 @@ const DashPage = (() => {
       const monthStart = month + '-01';
       const [y, m] = month.split('-').map(Number);
       const monthEnd = `${y}-${String(m).padStart(2,'0')}-${new Date(y, m, 0).getDate()}`;
-      const [todayRows, ibRows, monthRows] = await Promise.all([
+      const [todayRows, ibRows, monthRows, latestRows] = await Promise.all([
         Api.get('stocks', `date=eq.${today}&select=item_id,remain_qty,consumed_qty`),
         Api.get('inbound', `month=eq.${month}&select=item_id,qty`),
-        Api.get('stocks', `date=gte.${monthStart}&date=lte.${monthEnd}&select=item_id,consumed_qty`)
+        Api.get('stocks', `date=gte.${monthStart}&date=lte.${monthEnd}&select=item_id,consumed_qty`),
+        Api.get('stocks', `select=item_id,remain_qty,date&order=date.desc&limit=${ITEMS.length}`)
       ]);
       const todayMap = {};
       todayRows.forEach(r => { todayMap[r.item_id] = r; });
@@ -28,12 +29,15 @@ const DashPage = (() => {
         const qty = Math.max(0, Number(r.consumed_qty) || 0);
         monthConsumedMap[r.item_id] = (monthConsumedMap[r.item_id] || 0) + qty;
       });
+      const latestMap = {};
+      latestRows.forEach(r => { if (!latestMap[r.item_id]) latestMap[r.item_id] = r; });
 
       const statuses = ITEMS.map(it => {
         const row = todayMap[it.id];
-        const current = row ? Math.max(0, row.remain_qty) : null;
+        const latest = row || latestMap[it.id];
+        const current = latest ? Math.max(0, Number(latest.remain_qty)) : null;
         const monthConsumed = monthConsumedMap[it.id] || 0;
-        const ratio = current !== null ? Math.round(current / 100 * 100) : null;
+        const ratio = current !== null ? Math.min(100, current) : null;
         return { ...it, current, monthConsumed, ratio, danger: ratio !== null && ratio < 15, warning: ratio !== null && ratio < 25 && !(ratio < 15) };
       });
 
