@@ -37,7 +37,8 @@
   <span id="roleBadge" class="role-badge"></span>
   <span class="topbar-date" id="todayStr"></span>
   <div class="sync-dot" id="syncDot"></div>
-  <button class="logout-btn" onclick="App.handleLogout()">로그아웃</button>
+  <button class="logout-btn" id="logoutBtn" onclick="App.handleLogout()">로그아웃</button>
+  <script>if(window.self!==window.top)document.getElementById('logoutBtn').style.display='none';</script>
 </header>
 
 <div class="sec on" id="sec-input"><div id="inputMain"></div></div>
