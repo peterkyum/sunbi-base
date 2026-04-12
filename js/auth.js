@@ -148,7 +148,8 @@ const Auth = (() => {
   async function checkUrlHashSSO() {
     const hash = window.location.hash;
     if (!hash || !hash.includes('hub_token=')) return;
-    const token = hash.split('hub_token=')[1];
+    const params = new URLSearchParams(hash.substring(1));
+    const token = params.get('hub_token');
     if (!token) return;
 
     // URL에서 hash 제거 (보안)
