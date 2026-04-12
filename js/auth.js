@@ -103,6 +103,50 @@ const Auth = (() => {
     }
   }
 
+  // Hub iframe에서 postMessage로 세션 토큰 수신 (SSO)
+  const HUB_ORIGIN = 'https://sunbi-hub.vercel.app';
+
+  function listenForHubSession() {
+    window.addEventListener('message', async (e) => {
+      if (e.origin !== HUB_ORIGIN) return;
+      if (!e.data || e.data.type !== 'SUNBI_HUB_SESSION') return;
+      // 허브 토큰은 항상 수락 (기존 세션보다 허브가 권위)
+
+      const { access_token, refresh_token } = e.data;
+      if (!access_token || !refresh_token) return;
+
+      // 토큰으로 사용자 정보 조회
+      try {
+        const res = await fetch(`${cfg().SB_URL}/auth/v1/user`, {
+          headers: { 'apikey': cfg().SB_KEY, 'Authorization': `Bearer ${access_token}` }
+        });
+        if (!res.ok) return;
+        const user = await res.json();
+        const email = (user.email || '').toLowerCase().trim();
+        if (!email) return;
+
+        Api.setToken(access_token);
+        currentUser = user;
+        currentRole = getRole(email);
+
+        try {
+          localStorage.setItem('sunbi_session', JSON.stringify({
+            access_token,
+            refresh_token,
+            email,
+            role: currentRole
+          }));
+        } catch (_) { /* ignore */ }
+
+        startAutoRefresh();
+        App.onLoginSuccess();
+      } catch (_) { /* ignore */ }
+    });
+  }
+
+  // iframe 내부에서 자동 시작
+  listenForHubSession();
+
   return {
     login,
     logout,
