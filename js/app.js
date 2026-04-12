@@ -69,6 +69,7 @@ const App = (() => {
     if (name === 'dash') DashPage.render();
     if (name === 'order') OrderPage.render();
     if (name === 'inbound') InboundPage.render();
+    if (name === 'history') HistoryPage.render();
   }
 
   async function handleLogin() {
@@ -104,7 +105,7 @@ const App = (() => {
     InputPage.clearState();
 
     // 모든 섹션 초기화
-    ['inputMain', 'dashMain', 'orderMain', 'inboundMain'].forEach(id => {
+    ['inputMain', 'dashMain', 'orderMain', 'inboundMain', 'historyMain'].forEach(id => {
       const el = UI.$(id);
       if (el) el.innerHTML = '';
     });

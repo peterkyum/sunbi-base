@@ -173,3 +173,8 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--gray-100); col
 .logout-modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .logout-cancel { border: 1.5px solid var(--border); background: transparent; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; color: var(--gray-900); }
 .logout-confirm { border: none; background: var(--red); border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; color: var(--white); }
+
+/* ── 월별 히스토리 ── */
+.month-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 0 16px 12px; -webkit-overflow-scrolling: touch; }
+.month-tab { flex-shrink: 0; border: 1.5px solid var(--border); background: var(--white); border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; color: var(--gray-600); }
+.month-tab.on { background: var(--green); color: var(--white); border-color: var(--green); font-weight: 700; }

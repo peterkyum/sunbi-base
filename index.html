@@ -44,12 +44,14 @@
 <div class="sec" id="sec-dash"><div id="dashMain"></div></div>
 <div class="sec" id="sec-order"><div id="orderMain"></div></div>
 <div class="sec" id="sec-inbound"><div id="inboundMain"></div></div>
+<div class="sec" id="sec-history"><div id="historyMain"></div></div>
 
 <nav class="tabs">
   <button class="tab on" data-tab="input" onclick="App.goTab('input')"><span class="tab-icon">📦</span>재고입력</button>
   <button class="tab" data-tab="dash" onclick="App.goTab('dash')"><span class="tab-icon">📊</span>대시보드</button>
   <button class="tab" data-tab="order" onclick="App.goTab('order')"><span class="tab-icon">🛒</span>자동발주</button>
   <button class="tab" data-tab="inbound" onclick="App.goTab('inbound')"><span class="tab-icon">📋</span>입고관리</button>
+  <button class="tab" data-tab="history" onclick="App.goTab('history')"><span class="tab-icon">📅</span>히스토리</button>
 </nav>
 
 <!-- 로그아웃 확인 모달 -->
@@ -94,6 +96,7 @@
 <script src="js/pages/dashboard.js?v=10"></script>
 <script src="js/pages/order.js?v=10"></script>
 <script src="js/pages/inbound.js?v=10"></script>
+<script src="js/pages/history.js?v=10"></script>
 <script src="js/app.js?v=10"></script>
 <script>
 if ('serviceWorker' in navigator) {
