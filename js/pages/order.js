@@ -79,8 +79,9 @@ const OrderPage = (() => {
       }
       const curConsumedMap = {};
       curRows.forEach(r => {
-        if (r.consumed_qty > 0) {
-          curConsumedMap[r.item_id] = (curConsumedMap[r.item_id] || 0) + r.consumed_qty;
+        const qty = Math.max(0, Number(r.consumed_qty) || 0);
+        if (qty > 0) {
+          curConsumedMap[r.item_id] = (curConsumedMap[r.item_id] || 0) + qty;
         }
       });
       const curDays = curDateSet.length || 1;
