@@ -144,8 +144,46 @@ const Auth = (() => {
     });
   }
 
+  // Hub SSO: URL hash에서 토큰 읽기 (#hub_token=xxx)
+  async function checkUrlHashSSO() {
+    const hash = window.location.hash;
+    if (!hash || !hash.includes('hub_token=')) return;
+    const token = hash.split('hub_token=')[1];
+    if (!token) return;
+
+    // URL에서 hash 제거 (보안)
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+
+    try {
+      const res = await fetch(`${cfg().SB_URL}/auth/v1/user`, {
+        headers: { 'apikey': cfg().SB_KEY, 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const user = await res.json();
+      const email = (user.email || '').toLowerCase().trim();
+      if (!email) return;
+
+      Api.setToken(token);
+      currentUser = user;
+      currentRole = getRole(email);
+
+      try {
+        localStorage.setItem('sunbi_session', JSON.stringify({
+          access_token: token,
+          refresh_token: '',
+          email,
+          role: currentRole
+        }));
+      } catch (_) { /* ignore */ }
+
+      startAutoRefresh();
+      App.onLoginSuccess();
+    } catch (_) { /* ignore */ }
+  }
+
   // iframe 내부에서 자동 시작
   listenForHubSession();
+  checkUrlHashSSO();
 
   return {
     login,
