@@ -20,10 +20,15 @@ const OrderPage = (() => {
       const currentMonth = months[0];
       const analyzeMonths = months.slice(1);
 
-      // 오늘 재고
-      const todayRows = await Api.get('stocks', `date=eq.${today}&select=item_id,remain_qty`);
+      // 오늘 재고 (없으면 최근 재고)
+      const [todayRows, latestRows] = await Promise.all([
+        Api.get('stocks', `date=eq.${today}&select=item_id,remain_qty`),
+        Api.get('stocks', `select=item_id,remain_qty&order=date.desc&limit=${ITEMS.length}`)
+      ]);
       const todayMap = {};
       todayRows.forEach(r => { todayMap[r.item_id] = Math.max(0, r.remain_qty); });
+      const latestMap = {};
+      latestRows.forEach(r => { if (!latestMap[r.item_id]) latestMap[r.item_id] = Math.max(0, Number(r.remain_qty)); });
 
       // 입고 데이터
       const allIbRows = await Api.get('inbound', `select=month,item_id,qty`);
@@ -85,7 +90,7 @@ const OrderPage = (() => {
 
       ITEMS.forEach(it => {
         const usages = monthlyUsage[it.id];
-        const current = todayMap[it.id] !== undefined ? todayMap[it.id] : null;
+        const current = todayMap[it.id] !== undefined ? todayMap[it.id] : (latestMap[it.id] !== undefined ? latestMap[it.id] : null);
 
         let avgUsage = null, recLabel = '', isFallback = false;
         if (usages.length > 0) {
