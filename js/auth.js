@@ -147,9 +147,9 @@ const Auth = (() => {
   // Hub SSO: URL hash에서 토큰 읽기 (#hub_token=xxx)
   async function checkUrlHashSSO() {
     const hash = window.location.hash;
-    if (!hash || !hash.includes('hub_token=')) return;
+    if (!hash || !hash.includes('access_token=')) return;
     const params = new URLSearchParams(hash.substring(1));
-    const token = params.get('hub_token');
+    const token = params.get('access_token');
     if (!token) return;
 
     // URL에서 hash 제거 (보안)
