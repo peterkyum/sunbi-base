@@ -4,12 +4,18 @@
 const UI = (() => {
   function $(id) { return document.getElementById(id); }
 
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
   function loading(containerId) {
     $(containerId).innerHTML = '<div class="loading-box"><div class="spinner"></div>불러오는 중...</div>';
   }
 
   function errorMsg(containerId, message) {
-    $(containerId).innerHTML = `<div class="alert alert-red"><div class="dot dot-red"></div>서버 연결 오류: ${message}</div>`;
+    $(containerId).innerHTML = `<div class="alert alert-red"><div class="dot dot-red"></div>서버 연결 오류: ${escapeHtml(message)}</div>`;
   }
 
   function alertHtml(type, message) {
@@ -58,5 +64,5 @@ const UI = (() => {
     }
   }
 
-  return { $, loading, errorMsg, alertHtml, badge, showModal, hideModal, todayISO, thisMonth, fmtDate, fmtMonth, yesterdayISO, checkConnection };
+  return { $, escapeHtml, loading, errorMsg, alertHtml, badge, showModal, hideModal, todayISO, thisMonth, fmtDate, fmtMonth, yesterdayISO, checkConnection };
 })();

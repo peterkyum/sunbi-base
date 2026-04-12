@@ -91,38 +91,16 @@ const App = (() => {
     }
   }
 
-  function handleLogout() {
-    UI.showModal('logoutModalBg');
+  // 허브로 돌아가기: 모바일(탭 닫기) / 데스크탑(뒤로가기)
+  function goBackToHub() {
+    if (window.opener != null) {
+      window.close(); // window.open으로 열린 새 탭 닫기
+    } else {
+      history.back(); // iframe 또는 일반 뒤로가기
+    }
   }
 
-  function cancelLogout() {
-    UI.hideModal('logoutModalBg');
-  }
-
-  function confirmLogout() {
-    UI.hideModal('logoutModalBg');
-    Auth.logout();
-    InputPage.clearState();
-
-    // 모든 섹션 초기화
-    ['inputMain', 'dashMain', 'orderMain', 'inboundMain', 'historyMain'].forEach(id => {
-      const el = UI.$(id);
-      if (el) el.innerHTML = '';
-    });
-    document.querySelectorAll('.sec').forEach(s => s.classList.remove('on'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-    UI.$('sec-input').classList.add('on');
-
-    UI.$('loginScreen').style.display = 'flex';
-    UI.$('appBody').style.display = 'none';
-    UI.$('loginEmail').value = '';
-    UI.$('loginPw').value = '';
-    UI.$('loginErr').textContent = '';
-    UI.$('loginBtn').disabled = false;
-    UI.$('loginBtn').textContent = '로그인';
-  }
-
-  return { init, onLoginSuccess, goTab, handleLogin, handleLogout, cancelLogout, confirmLogout };
+  return { init, onLoginSuccess, goTab, handleLogin, goBackToHub };
 })();
 
 // 앱 시작

@@ -26,13 +26,15 @@ const InboundPage = (() => {
 
       ITEMS.forEach(it => {
         const val = ibMap[it.id] !== undefined ? ibMap[it.id] : '';
+        const eName = UI.escapeHtml(it.name);
+        const eUnit = UI.escapeHtml(it.unit);
         html += `<div class="inbound-item">
           <div class="inbound-top">
-            <span class="item-name" style="font-size:14px;font-weight:700">${it.name}</span>
-            ${UI.badge('blue', val !== '' ? val + it.unit : '미입력')}
+            <span class="item-name" style="font-size:14px;font-weight:700">${eName}</span>
+            ${UI.badge('blue', val !== '' ? val + eUnit : '미입력')}
           </div>
           <div class="input-row">
-            <div><div class="input-label">월 평균 사용량</div><div class="input-val">${it.monthAvg}${it.unit}</div></div>
+            <div><div class="input-label">월 평균 사용량</div><div class="input-val">${it.monthAvg}${eUnit}</div></div>
             <div><div class="input-label">${UI.fmtMonth(selectedMonth)} 입고량</div>
               <input class="qty-input" type="number" inputmode="numeric" placeholder="0" id="ib-${it.id}" value="${val}">
             </div>
@@ -49,7 +51,7 @@ const InboundPage = (() => {
       ITEMS.forEach((it, idx) => {
         html += `<tr>
           <td><input type="checkbox" class="item-chk" data-idx="${idx}"></td>
-          <td style="font-weight:700" id="name-td-${idx}">${it.name}</td><td>${it.unit}</td>
+          <td style="font-weight:700" id="name-td-${idx}">${UI.escapeHtml(it.name)}</td><td>${UI.escapeHtml(it.unit)}</td>
           <td id="avg-td-${idx}">${it.monthAvg}</td>
           <td style="white-space:nowrap">
             <button onclick="InboundPage.editName(${idx})" style="border:none;background:var(--blue-light);color:var(--blue);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">이름</button>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sunbi-v10';
+const CACHE_NAME = 'sunbi-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -12,8 +12,8 @@ const ASSETS = [
   './js/pages/dashboard.js',
   './js/pages/order.js',
   './js/pages/inbound.js',
+  './js/pages/history.js',
   './js/app.js',
-  './config.local.js',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap'
 ];
@@ -35,20 +35,26 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // API 요청은 항상 네트워크 우선
-  if (e.request.url.includes('supabase.co') ||
-      e.request.url.includes('api.telegram.org') ||
-      e.request.url.includes('script.google.com')) {
-    e.respondWith(fetch(e.request));
+  const url = new URL(e.request.url);
+
+  // API 요청은 네트워크에 위임 (캐시하지 않음)
+  if (url.hostname.includes('supabase') ||
+      url.hostname.includes('googleapis') ||
+      url.hostname.includes('api.telegram.org') ||
+      url.hostname.includes('script.google.com')) {
     return;
   }
 
-  // 정적 파일은 네트워크 우선, 실패 시 캐시
+  // 정적 파일은 캐시 우선, 없으면 네트워크에서 가져와 캐시에 저장
   e.respondWith(
-    fetch(e.request).then(res => {
-      const clone = res.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-      return res;
-    }).catch(() => caches.match(e.request))
+    caches.match(e.request).then(cached => {
+      return cached || fetch(e.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        }
+        return res;
+      });
+    })
   );
 });

@@ -66,10 +66,9 @@ const Auth = (() => {
       currentRole = saved.role;
       currentUser = { email: saved.email };
 
-      // 토큰 갱신 — 실패 시 로그아웃
+      // 토큰 갱신 — 실패 시 세션 유지한 채 null 반환 (허브에서 재인증)
       const refreshed = await Api.refreshToken();
       if (!refreshed) {
-        logout();
         return null;
       }
 
@@ -78,7 +77,6 @@ const Auth = (() => {
 
       return { user: currentUser, role: currentRole };
     } catch {
-      logout();
       return null;
     }
   }
@@ -90,8 +88,8 @@ const Auth = (() => {
     refreshInterval = setInterval(async () => {
       const ok = await Api.refreshToken();
       if (!ok) {
-        logout();
-        location.reload();
+        // 갱신 실패 시 허브로 돌아가기 (로그아웃은 허브에서만)
+        App.goBackToHub();
       }
     }, 50 * 60 * 1000); // 50분
   }
@@ -188,7 +186,6 @@ const Auth = (() => {
 
   return {
     login,
-    logout,
     restore,
     get user() { return currentUser; },
     get role() { return currentRole; },

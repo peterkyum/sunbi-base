@@ -27,8 +27,6 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--gray-100); col
 .role-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-left: 8px; }
 .role-dist { background: var(--amber-light); color: var(--amber); }
 .role-hq { background: var(--green-light); color: var(--green); }
-.logout-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; font-size: 12px; color: var(--gray-600); cursor: pointer; font-family: 'Noto Sans KR', sans-serif; margin-left: auto; }
-.logout-btn:hover { background: var(--gray-100); }
 
 /* ── 상단바 ── */
 .topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 14px 16px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; }
@@ -37,6 +35,7 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--gray-100); col
 .topbar-title { font-size: 15px; font-weight: 700; }
 .topbar-date { font-size: 11px; color: var(--gray-600); margin-top: 1px; }
 .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-300); margin-left: auto; flex-shrink: 0; }
+.back-to-hub-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; font-size: 12px; color: var(--gray-600); cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
 .sync-dot.ok { background: var(--green-mid); }
 .sync-dot.err { background: var(--red); }
 
@@ -164,15 +163,6 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--gray-100); col
 .btn-save { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
 .btn-cancel { background: #999; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
 
-/* ── 로그아웃 모달 ── */
-.logout-modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 300; align-items: center; justify-content: center; }
-.logout-modal-bg.show { display: flex; }
-.logout-modal { background: var(--white); border-radius: 18px; padding: 28px 24px 20px; width: calc(100% - 48px); max-width: 320px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
-.logout-modal-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-.logout-modal-sub { font-size: 13px; color: var(--gray-600); margin-bottom: 22px; line-height: 1.5; }
-.logout-modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.logout-cancel { border: 1.5px solid var(--border); background: transparent; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; color: var(--gray-900); }
-.logout-confirm { border: none; background: var(--red); border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; color: var(--white); }
 
 /* ── 월별 히스토리 ── */
 .month-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 0 16px 12px; -webkit-overflow-scrolling: touch; }

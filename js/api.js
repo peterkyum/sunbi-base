@@ -58,10 +58,9 @@ const Api = (() => {
         opts.headers = { ...headers(), ...extraHeaders };
         res = await fetch(endpoint, opts);
       } else {
-        // refresh_token도 만료됨 — 로그인 화면으로
-        Auth.logout();
-        location.reload();
-        throw new Error('세션이 만료되었습니다. 다시 로그인해 주세요.');
+        // refresh_token도 만료됨 — 허브로 돌아가기 (로그아웃은 허브에서만)
+        App.goBackToHub();
+        throw new Error('세션이 만료되었습니다. 허브에서 다시 로그인해 주세요.');
       }
     }
 
@@ -77,12 +76,11 @@ const Api = (() => {
             res = await fetch(endpoint, opts);
             if (res.ok) return method === 'DELETE' ? null : res.json();
           }
-          Auth.logout();
-          location.reload();
-          throw new Error('세션이 만료되었습니다. 다시 로그인해 주세요.');
+          App.goBackToHub();
+          throw new Error('세션이 만료되었습니다. 허브에서 다시 로그인해 주세요.');
         }
       } catch (parseErr) {
-        // JSON 파싱 실패 시 원본 에러 전달
+        console.warn('JSON parse error:', parseErr);
       }
       throw new Error(errText);
     }

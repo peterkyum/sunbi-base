@@ -37,8 +37,7 @@
   <span id="roleBadge" class="role-badge"></span>
   <span class="topbar-date" id="todayStr"></span>
   <div class="sync-dot" id="syncDot"></div>
-  <button class="logout-btn" id="logoutBtn" onclick="App.handleLogout()">로그아웃</button>
-  <script>if(window.self!==window.top)document.getElementById('logoutBtn').style.display='none';</script>
+  <button class="back-to-hub-btn" id="backToHubBtn" onclick="App.goBackToHub()">← 허브</button>
 </header>
 
 <div class="sec on" id="sec-input"><div id="inputMain"></div></div>
@@ -55,17 +54,6 @@
   <button class="tab" data-tab="history" onclick="App.goTab('history')"><span class="tab-icon">📅</span>히스토리</button>
 </nav>
 
-<!-- 로그아웃 확인 모달 -->
-<div class="logout-modal-bg" id="logoutModalBg">
-  <div class="logout-modal">
-    <div class="logout-modal-title">로그아웃</div>
-    <div class="logout-modal-sub">정말 로그아웃 하시겠어요?</div>
-    <div class="logout-modal-btns">
-      <button class="logout-cancel" onclick="App.cancelLogout()">취소</button>
-      <button class="logout-confirm" onclick="App.confirmLogout()">로그아웃</button>
-    </div>
-  </div>
-</div>
 
 <!-- 품목 추가 모달 -->
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)InboundPage.closeAddModal()">
@@ -87,18 +75,18 @@
 </div><!-- /appBody -->
 
 <!-- JS 모듈 로드 순서 중요: 의존성 순서대로 -->
-<script src="config.local.js" onerror=""></script>
-<script src="js/api.js?v=10"></script>
-<script src="js/auth.js?v=10"></script>
-<script src="js/ui.js?v=10"></script>
-<script src="js/items.js?v=10"></script>
-<script src="js/notify.js?v=10"></script>
-<script src="js/pages/input.js?v=10"></script>
-<script src="js/pages/dashboard.js?v=10"></script>
-<script src="js/pages/order.js?v=10"></script>
-<script src="js/pages/inbound.js?v=10"></script>
-<script src="js/pages/history.js?v=10"></script>
-<script src="js/app.js?v=10"></script>
+<script defer src="config.local.js" onerror=""></script>
+<script defer src="js/api.js?v=10"></script>
+<script defer src="js/auth.js?v=10"></script>
+<script defer src="js/ui.js?v=10"></script>
+<script defer src="js/items.js?v=10"></script>
+<script defer src="js/notify.js?v=10"></script>
+<script defer src="js/pages/input.js?v=10"></script>
+<script defer src="js/pages/dashboard.js?v=10"></script>
+<script defer src="js/pages/order.js?v=10"></script>
+<script defer src="js/pages/inbound.js?v=10"></script>
+<script defer src="js/pages/history.js?v=10"></script>
+<script defer src="js/app.js?v=10"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');

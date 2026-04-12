@@ -40,8 +40,7 @@ const Items = (() => {
 
   function remove(idx) {
     const items = load();
-    items.splice(idx, 1);
-    save(items);
+    save(items.filter((_, i) => i !== idx));
   }
 
   return { load, save, add, remove, SAFETY };

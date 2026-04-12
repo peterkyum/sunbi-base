@@ -47,10 +47,10 @@ const DashPage = (() => {
 
       let html = '';
       statuses.filter(s => s.danger).forEach(s => {
-        html += UI.alertHtml('red', `${s.name} 재고 ${s.current}${s.unit} — 평균 대비 ${s.ratio}% 남음. 즉시 확인!`);
+        html += UI.alertHtml('red', `${UI.escapeHtml(s.name)} 재고 ${s.current}${UI.escapeHtml(s.unit)} — 평균 대비 ${s.ratio}% 남음. 즉시 확인!`);
       });
       statuses.filter(s => s.warning).forEach(s => {
-        html += UI.alertHtml('amber', `${s.name} 재고 ${s.current}${s.unit} — 평균 대비 ${s.ratio}% 남음.`);
+        html += UI.alertHtml('amber', `${UI.escapeHtml(s.name)} 재고 ${s.current}${UI.escapeHtml(s.unit)} — 평균 대비 ${s.ratio}% 남음.`);
       });
       if (!dangerCount && !warningCount) {
         html += UI.alertHtml('green', '모든 품목 재고 정상입니다');
@@ -66,7 +66,7 @@ const DashPage = (() => {
       statuses.forEach(s => {
         const pct = Math.min(100, s.ratio ?? 0);
         const color = pct < 15 ? '#E24B4A' : pct < 25 ? '#EF9F27' : '#639922';
-        html += `<div class="bar-row"><span class="bar-name">${s.name}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><span class="bar-pct">${s.current !== null ? pct + '%' : '\u2014'}</span></div>`;
+        html += `<div class="bar-row"><span class="bar-name">${UI.escapeHtml(s.name)}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><span class="bar-pct">${s.current !== null ? pct + '%' : '\u2014'}</span></div>`;
       });
       html += `</div>`;
 
@@ -76,8 +76,10 @@ const DashPage = (() => {
       statuses.forEach(s => {
         const pct = Math.min(100, s.ratio ?? 0);
         const badge = s.danger ? UI.badge('red', '위험') : s.warning ? UI.badge('amber', '주의') : UI.badge('green', '정상');
-        const actions = isHQ ? `<td><div class="hq-actions"><button class="btn-edit" onclick="DashPage.hqEdit('${s.id}','${s.name}',${s.current ?? 0})">수정</button>${s.current !== null ? `<button class="btn-del" onclick="DashPage.hqDelete('${s.id}','${s.name}')">삭제</button>` : ''}</div></td>` : '';
-        html += `<tr><td style="font-weight:700">${s.name}</td><td id="td-cur-${s.id}">${s.current !== null ? s.current + s.unit : '미입력'}</td><td>${s.monthConsumed > 0 ? s.monthConsumed + s.unit : '\u2014'}</td><td>${s.current !== null ? pct + '%' : '\u2014'}</td><td>${badge}</td>${actions}</tr>`;
+        const escapedName = UI.escapeHtml(s.name);
+        const escapedUnit = UI.escapeHtml(s.unit);
+        const actions = isHQ ? `<td><div class="hq-actions"><button class="btn-edit" onclick="DashPage.hqEdit('${s.id}','${escapedName}',${s.current ?? 0})">수정</button>${s.current !== null ? `<button class="btn-del" onclick="DashPage.hqDelete('${s.id}','${escapedName}')">삭제</button>` : ''}</div></td>` : '';
+        html += `<tr><td style="font-weight:700">${escapedName}</td><td id="td-cur-${s.id}">${s.current !== null ? s.current + escapedUnit : '미입력'}</td><td>${s.monthConsumed > 0 ? s.monthConsumed + escapedUnit : '\u2014'}</td><td>${s.current !== null ? pct + '%' : '\u2014'}</td><td>${badge}</td>${actions}</tr>`;
       });
       html += `</tbody></table></div>`;
       if (isHQ) {
@@ -92,7 +94,7 @@ const DashPage = (() => {
         const histMap = {};
         history.forEach(r => { if (!histMap[r.date]) histMap[r.date] = {}; histMap[r.date][r.item_id] = r.remain_qty; });
         html += `<div class="card"><div class="card-title">최근 입력 기록</div><div style="overflow-x:auto"><table class="tbl">
-          <thead><tr><th>날짜</th>${ITEMS.map(it => `<th>${it.name.slice(0, 3)}</th>`).join('')}${isHQ ? '<th>관리</th>' : ''}</tr></thead><tbody>`;
+          <thead><tr><th>날짜</th>${ITEMS.map(it => `<th>${UI.escapeHtml(it.name.slice(0, 3))}</th>`).join('')}${isHQ ? '<th>관리</th>' : ''}</tr></thead><tbody>`;
         days.forEach(d => {
           html += `<tr><td style="font-weight:700;white-space:nowrap">${UI.fmtDate(d)}</td>`;
           ITEMS.forEach(it => { html += `<td>${histMap[d]?.[it.id] !== undefined ? histMap[d][it.id] : '\u2014'}</td>`; });
