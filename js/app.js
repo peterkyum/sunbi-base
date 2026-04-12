@@ -2,7 +2,7 @@
 // 앱 초기화 및 라우팅
 // ══════════════════════════════════════
 const App = (() => {
-  function init() {
+  async function init() {
     // 오늘 날짜 표시
     UI.$('todayStr').textContent = new Date().toLocaleDateString('ko-KR', {
       year: 'numeric', month: 'long', day: 'numeric', weekday: 'short'
@@ -15,8 +15,8 @@ const App = (() => {
       return;
     }
 
-    // 저장된 세션 복원
-    const session = Auth.restore();
+    // 저장된 세션 복원 (토큰 갱신 완료까지 대기)
+    const session = await Auth.restore();
     if (session) {
       onLoginSuccess();
     }

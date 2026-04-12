@@ -52,13 +52,38 @@ const Api = (() => {
 
     let res = await fetch(endpoint, opts);
 
-    if (res.status === 401 && await refreshToken()) {
-      opts.headers = { ...headers(), ...extraHeaders };
-      res = await fetch(endpoint, opts);
+    if (res.status === 401) {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        opts.headers = { ...headers(), ...extraHeaders };
+        res = await fetch(endpoint, opts);
+      } else {
+        // refresh_token도 만료됨 — 로그인 화면으로
+        Auth.logout();
+        location.reload();
+        throw new Error('세션이 만료되었습니다. 다시 로그인해 주세요.');
+      }
     }
 
     if (!res.ok) {
       const errText = await res.text();
+      // JWT 만료 에러 (PostgREST PGRST303)
+      try {
+        const errObj = JSON.parse(errText);
+        if (errObj.code === 'PGRST303' || errObj.message === 'JWT expired') {
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            opts.headers = { ...headers(), ...extraHeaders };
+            res = await fetch(endpoint, opts);
+            if (res.ok) return method === 'DELETE' ? null : res.json();
+          }
+          Auth.logout();
+          location.reload();
+          throw new Error('세션이 만료되었습니다. 다시 로그인해 주세요.');
+        }
+      } catch (parseErr) {
+        // JSON 파싱 실패 시 원본 에러 전달
+      }
       throw new Error(errText);
     }
 

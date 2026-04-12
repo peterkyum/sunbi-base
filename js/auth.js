@@ -43,17 +43,19 @@ const Auth = (() => {
       // localStorage 사용 불가 시 메모리 세션으로 동작
     }
 
+    startAutoRefresh();
     return { user: currentUser, role: currentRole };
   }
 
   function logout() {
+    stopAutoRefresh();
     Api.setToken(cfg().SB_KEY || '');
     currentUser = null;
     currentRole = null;
     try { localStorage.removeItem('sunbi_session'); } catch (e) { /* ignore */ }
   }
 
-  function restore() {
+  async function restore() {
     try {
       const raw = localStorage.getItem('sunbi_session');
       if (!raw) return null;
@@ -64,13 +66,40 @@ const Auth = (() => {
       currentRole = saved.role;
       currentUser = { email: saved.email };
 
-      // 백그라운드 토큰 갱신
-      Api.refreshToken();
+      // 토큰 갱신 — 실패 시 로그아웃
+      const refreshed = await Api.refreshToken();
+      if (!refreshed) {
+        logout();
+        return null;
+      }
+
+      // 50분마다 토큰 자동 갱신 (JWT 기본 만료: 1시간)
+      startAutoRefresh();
 
       return { user: currentUser, role: currentRole };
     } catch {
       logout();
       return null;
+    }
+  }
+
+  let refreshInterval = null;
+
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    refreshInterval = setInterval(async () => {
+      const ok = await Api.refreshToken();
+      if (!ok) {
+        logout();
+        location.reload();
+      }
+    }, 50 * 60 * 1000); // 50분
+  }
+
+  function stopAutoRefresh() {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
     }
   }
 
