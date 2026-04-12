@@ -12,7 +12,8 @@ const DashPage = (() => {
 
     try {
       const monthStart = month + '-01';
-      const monthEnd = month + '-31';
+      const [y, m] = month.split('-').map(Number);
+      const monthEnd = `${y}-${String(m).padStart(2,'0')}-${new Date(y, m, 0).getDate()}`;
       const [todayRows, ibRows, monthRows] = await Promise.all([
         Api.get('stocks', `date=eq.${today}&select=item_id,remain_qty,consumed_qty`),
         Api.get('inbound', `month=eq.${month}&select=item_id,qty`),
