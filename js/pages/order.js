@@ -110,9 +110,7 @@ const OrderPage = (() => {
           lastOrderData.push({ item_name: it.name, order_qty: rec, current_qty: current ?? 0, avg_usage: avgUsage, unit: it.unit });
         }
 
-        const curStart = curFirstMap[it.id];
-        const curIb = (ibMap[currentMonth] || {})[it.id] || 0;
-        const curUsedSoFar = (curStart !== undefined && current !== null) ? curStart + curIb - current : null;
+        const curUsedSoFar = curConsumedMap[it.id] || 0;
         const noData = usages.length === 0 && !curConsumedMap[it.id];
 
         html += `<div class="order-item">
@@ -129,7 +127,7 @@ const OrderPage = (() => {
           <div class="order-detail">
             <div><div class="od-label">${isFallback ? '추정 월 사용량' : '평균 월 사용량'}</div><div class="od-val">${avgUsage !== null ? avgUsage + it.unit : '미산출'}</div></div>
             <div><div class="od-label">현재 재고</div><div class="od-val">${current !== null ? current + it.unit : '미입력'}</div></div>
-            <div><div class="od-label">이번달 현재까지 소진</div><div class="od-val">${curUsedSoFar !== null ? curUsedSoFar + it.unit : '\u2014'}</div></div>
+            <div><div class="od-label">이번달 현재까지 소진</div><div class="od-val">${curUsedSoFar > 0 ? curUsedSoFar + it.unit : '\u2014'}</div></div>
           </div>
           ${usages.length > 0 ? `
           <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
