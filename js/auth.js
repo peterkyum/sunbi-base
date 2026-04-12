@@ -108,12 +108,13 @@ const Auth = (() => {
     window.addEventListener('message', async (e) => {
       if (e.origin !== HUB_ORIGIN) return;
       if (!e.data || e.data.type !== 'SUNBI_HUB_SESSION') return;
-      // 허브 토큰은 항상 수락 (기존 세션보다 허브가 권위)
+
+      // 이미 유효한 세션이 있으면 hub 토큰 무시 (refresh_token 소비 방지)
+      if (currentUser && currentRole) return;
 
       const { access_token, refresh_token } = e.data;
       if (!access_token || !refresh_token) return;
 
-      // 토큰으로 사용자 정보 조회
       try {
         const res = await fetch(`${cfg().SB_URL}/auth/v1/user`, {
           headers: { 'apikey': cfg().SB_KEY, 'Authorization': `Bearer ${access_token}` }
@@ -142,16 +143,27 @@ const Auth = (() => {
     });
   }
 
-  // Hub SSO: URL hash에서 토큰 읽기 (#hub_token=xxx)
+  // Hub SSO: URL hash에서 토큰 읽기 (#access_token=xxx)
   async function checkUrlHashSSO() {
     const hash = window.location.hash;
     if (!hash || !hash.includes('access_token=')) return;
-    const params = new URLSearchParams(hash.substring(1));
-    const token = params.get('access_token');
-    if (!token) return;
 
     // URL에서 hash 제거 (보안)
     history.replaceState(null, '', window.location.pathname + window.location.search);
+
+    // 이미 유효한 세션이 있으면 hub 토큰 소비하지 않음 (세션 보호)
+    try {
+      const raw = localStorage.getItem('sunbi_session');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && saved.access_token && saved.role) return;
+      }
+    } catch (_) { /* ignore */ }
+
+    const params = new URLSearchParams(hash.substring(1));
+    const token = params.get('access_token');
+    const refreshToken = params.get('refresh_token') || '';
+    if (!token) return;
 
     try {
       const res = await fetch(`${cfg().SB_URL}/auth/v1/user`, {
@@ -169,7 +181,7 @@ const Auth = (() => {
       try {
         localStorage.setItem('sunbi_session', JSON.stringify({
           access_token: token,
-          refresh_token: '',
+          refresh_token: refreshToken,
           email,
           role: currentRole
         }));
