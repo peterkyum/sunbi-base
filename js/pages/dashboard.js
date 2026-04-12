@@ -11,24 +11,32 @@ const DashPage = (() => {
     const isHQ = Auth.role === 'hq';
 
     try {
-      const [todayRows, ibRows] = await Promise.all([
+      const monthStart = month + '-01';
+      const monthEnd = month + '-31';
+      const [todayRows, ibRows, monthRows] = await Promise.all([
         Api.get('stocks', `date=eq.${today}&select=item_id,remain_qty,consumed_qty`),
-        Api.get('inbound', `month=eq.${month}&select=item_id,qty`)
+        Api.get('inbound', `month=eq.${month}&select=item_id,qty`),
+        Api.get('stocks', `date=gte.${monthStart}&date=lte.${monthEnd}&select=item_id,consumed_qty`)
       ]);
       const todayMap = {};
       todayRows.forEach(r => { todayMap[r.item_id] = r; });
       const ibMap = {};
       ibRows.forEach(r => { ibMap[r.item_id] = r.qty; });
+      const monthConsumedMap = {};
+      monthRows.forEach(r => {
+        const qty = Math.max(0, Number(r.consumed_qty) || 0);
+        monthConsumedMap[r.item_id] = (monthConsumedMap[r.item_id] || 0) + qty;
+      });
 
       const statuses = ITEMS.map(it => {
         const row = todayMap[it.id];
         const current = row ? Math.max(0, row.remain_qty) : null;
-        const consumed = row ? Math.max(0, row.consumed_qty) : null;
+        const monthConsumed = monthConsumedMap[it.id] || 0;
         const ratio = current !== null ? Math.round(current / 100 * 100) : null;
-        return { ...it, current, consumed, ratio, danger: ratio !== null && ratio < 15, warning: ratio !== null && ratio < 25 && !(ratio < 15) };
+        return { ...it, current, monthConsumed, ratio, danger: ratio !== null && ratio < 15, warning: ratio !== null && ratio < 25 && !(ratio < 15) };
       });
 
-      const totalConsumed = statuses.reduce((a, s) => a + (s.consumed || 0), 0);
+      const totalConsumed = statuses.reduce((a, s) => a + (s.monthConsumed || 0), 0);
       const dangerCount = statuses.filter(s => s.danger).length;
       const warningCount = statuses.filter(s => s.warning).length;
 
@@ -44,7 +52,7 @@ const DashPage = (() => {
       }
 
       html += `<div class="metric-grid">
-        <div class="metric"><div class="metric-label">오늘 총 소진</div><div class="metric-val">${totalConsumed}</div><div class="metric-unit">합산 수량</div></div>
+        <div class="metric"><div class="metric-label">이번달 총 소진</div><div class="metric-val">${totalConsumed}</div><div class="metric-unit">합산 수량</div></div>
         <div class="metric"><div class="metric-label">위험 품목</div><div class="metric-val" style="color:${dangerCount > 0 ? 'var(--red)' : 'inherit'}">${dangerCount}</div><div class="metric-unit">즉시 확인</div></div>
       </div>`;
 
@@ -59,12 +67,12 @@ const DashPage = (() => {
 
       // 전체 현황 테이블
       html += `<div class="card"><div class="card-title">전체 현황</div><div style="overflow-x:auto"><table class="tbl">
-        <thead><tr><th>품목</th><th>현재</th><th>소진</th><th>잔여율</th><th>상태</th>${isHQ ? '<th>관리</th>' : ''}</tr></thead><tbody>`;
+        <thead><tr><th>품목</th><th>현재</th><th>월소진</th><th>잔여율</th><th>상태</th>${isHQ ? '<th>관리</th>' : ''}</tr></thead><tbody>`;
       statuses.forEach(s => {
         const pct = Math.min(100, s.ratio ?? 0);
         const badge = s.danger ? UI.badge('red', '위험') : s.warning ? UI.badge('amber', '주의') : UI.badge('green', '정상');
         const actions = isHQ ? `<td><div class="hq-actions"><button class="btn-edit" onclick="DashPage.hqEdit('${s.id}','${s.name}',${s.current ?? 0})">수정</button>${s.current !== null ? `<button class="btn-del" onclick="DashPage.hqDelete('${s.id}','${s.name}')">삭제</button>` : ''}</div></td>` : '';
-        html += `<tr><td style="font-weight:700">${s.name}</td><td id="td-cur-${s.id}">${s.current !== null ? s.current + s.unit : '미입력'}</td><td>${s.consumed !== null ? s.consumed + s.unit : '\u2014'}</td><td>${s.current !== null ? pct + '%' : '\u2014'}</td><td>${badge}</td>${actions}</tr>`;
+        html += `<tr><td style="font-weight:700">${s.name}</td><td id="td-cur-${s.id}">${s.current !== null ? s.current + s.unit : '미입력'}</td><td>${s.monthConsumed > 0 ? s.monthConsumed + s.unit : '\u2014'}</td><td>${s.current !== null ? pct + '%' : '\u2014'}</td><td>${badge}</td>${actions}</tr>`;
       });
       html += `</tbody></table></div>`;
       if (isHQ) {
