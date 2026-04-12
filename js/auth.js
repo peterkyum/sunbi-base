@@ -57,18 +57,54 @@ const Auth = (() => {
 
   async function restore() {
     try {
-      const raw = localStorage.getItem('sunbi_session');
-      if (!raw) return null;
-      const saved = JSON.parse(raw);
-      if (!saved || !saved.access_token || !saved.role || !saved.email) return null;
+      // 1. 기존 세션 확인
+      let raw = localStorage.getItem('sunbi_session');
+      let saved = raw ? JSON.parse(raw) : null;
+
+      // 2. 기존 세션 없으면 허브 공유 토큰에서 복원 (같은 도메인 iframe)
+      if (!saved || !saved.access_token) {
+        const hubRaw = localStorage.getItem('sunbi_hub_token');
+        if (hubRaw) {
+          const hub = JSON.parse(hubRaw);
+          if (hub && hub.access_token && hub.email) {
+            Api.setToken(hub.access_token);
+            currentUser = { email: hub.email };
+            currentRole = getRole(hub.email);
+            // 허브 토큰으로 세션 저장 (refresh_token 없이 — 허브가 갱신 담당)
+            try {
+              localStorage.setItem('sunbi_session', JSON.stringify({
+                access_token: hub.access_token,
+                refresh_token: '',
+                email: hub.email,
+                role: currentRole
+              }));
+            } catch (_) { /* ignore */ }
+            return { user: currentUser, role: currentRole };
+          }
+        }
+        return null;
+      }
+
+      if (!saved.role || !saved.email) return null;
 
       Api.setToken(saved.access_token);
       currentRole = saved.role;
       currentUser = { email: saved.email };
 
-      // 토큰 갱신 — 실패 시 세션 유지한 채 null 반환 (허브에서 재인증)
+      // 토큰 갱신 시도 — 실패해도 허브 토큰으로 갱신
       const refreshed = await Api.refreshToken();
       if (!refreshed) {
+        // 허브 공유 토큰에서 최신 access_token 가져오기
+        const hubRaw = localStorage.getItem('sunbi_hub_token');
+        if (hubRaw) {
+          const hub = JSON.parse(hubRaw);
+          if (hub && hub.access_token) {
+            Api.setToken(hub.access_token);
+            saved = { ...saved, access_token: hub.access_token };
+            try { localStorage.setItem('sunbi_session', JSON.stringify(saved)); } catch (_) { /* ignore */ }
+            return { user: currentUser, role: currentRole };
+          }
+        }
         return null;
       }
 
