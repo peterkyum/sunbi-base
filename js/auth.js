@@ -66,7 +66,7 @@ const Auth = (() => {
           currentUser = { email: hub.email };
           // 허브 역할 → sunbi-base 역할 매핑
           const hubRole = (hub.role || '').toLowerCase();
-          if (hubRole === 'admin' || hubRole === 'staff') {
+          if (hubRole === 'admin' || hubRole === 'hq' || hubRole === 'staff') {
             currentRole = 'hq';
           } else {
             currentRole = 'dist';
