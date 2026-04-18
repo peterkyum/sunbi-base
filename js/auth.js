@@ -55,10 +55,30 @@ const Auth = (() => {
     try { localStorage.removeItem('sunbi_session'); } catch (e) { /* ignore */ }
   }
 
+  // 허브 토큰이 아직 저장되지 않았을 때 짧은 대기 후 재시도
+  async function waitForHubToken(maxWait) {
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+      const raw = localStorage.getItem('sunbi_hub_token');
+      if (raw) return raw;
+      await new Promise(r => setTimeout(r, 200));
+    }
+    return null;
+  }
+
   async function restore() {
     try {
       // 1. 허브 공유 토큰 확인 (iframe에서는 항상 허브가 권위)
-      const hubRaw = localStorage.getItem('sunbi_hub_token');
+      let hubRaw = localStorage.getItem('sunbi_hub_token');
+      // iframe 내부이면 허브가 토큰을 저장할 때까지 최대 2초 대기
+      if (!hubRaw) {
+        try {
+          const inIframe = window.self !== window.top;
+          if (inIframe) hubRaw = await waitForHubToken(2000);
+        } catch (_) {
+          hubRaw = await waitForHubToken(2000);
+        }
+      }
       if (hubRaw) {
         const hub = JSON.parse(hubRaw);
         if (hub && hub.access_token && hub.email) {
