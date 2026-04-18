@@ -74,7 +74,7 @@ const Auth = (() => {
           try {
             localStorage.setItem('sunbi_session', JSON.stringify({
               access_token: hub.access_token,
-              refresh_token: '',
+              refresh_token: hub.refresh_token || '',
               email: hub.email,
               role: currentRole
             }));
