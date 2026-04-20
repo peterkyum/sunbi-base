@@ -184,7 +184,7 @@ const Auth = (() => {
         } catch (_) { /* ignore */ }
 
         startAutoRefresh();
-        App.onLoginSuccess();
+        await App.onLoginSuccess();
       } catch (_) { /* ignore */ }
     });
   }
@@ -234,7 +234,7 @@ const Auth = (() => {
       } catch (_) { /* ignore */ }
 
       startAutoRefresh();
-      App.onLoginSuccess();
+      await App.onLoginSuccess();
     } catch (_) { /* ignore */ }
   }
 

@@ -100,19 +100,26 @@ const InboundPage = (() => {
     document.querySelectorAll('.item-chk').forEach(c => { c.checked = checked; });
   }
 
-  function resetSelected() {
+  async function resetSelected() {
     const checks = document.querySelectorAll('.item-chk:checked');
     if (checks.length === 0) { alert('초기화할 품목을 선택해 주세요.'); return; }
     const items = Items.load();
-    const names = [];
+    const targets = [];
     checks.forEach(c => {
       const idx = parseInt(c.dataset.idx);
-      names.push(items[idx].name);
-      items[idx] = { ...items[idx], monthAvg: 0 };
+      if (items[idx]) targets.push(items[idx]);
     });
+    if (targets.length === 0) return;
+    const names = targets.map(t => t.name);
     if (!confirm(`${names.join(', ')}\n\n${names.length}개 품목의 월평균을 0으로 초기화할까요?`)) return;
-    Items.save(items);
-    render();
+    try {
+      for (const t of targets) {
+        await Items.updateById(t.id, { monthAvg: 0 });
+      }
+      render();
+    } catch (e) {
+      alert('초기화 오류: ' + e.message);
+    }
   }
 
   function editName(idx) {
@@ -125,15 +132,17 @@ const InboundPage = (() => {
     UI.$('name-inp-' + idx).focus();
   }
 
-  function saveName(idx) {
+  async function saveName(idx) {
     const inp = UI.$('name-inp-' + idx);
     if (!inp) return;
     const val = inp.value.trim();
     if (!val) { alert('품목명을 입력해 주세요.'); return; }
-    const items = Items.load();
-    items[idx] = { ...items[idx], name: val };
-    Items.save(items);
-    render();
+    try {
+      await Items.update(idx, { name: val });
+      render();
+    } catch (e) {
+      alert('저장 오류: ' + e.message);
+    }
   }
 
   function editAvg(idx) {
@@ -146,20 +155,26 @@ const InboundPage = (() => {
     UI.$('avg-inp-' + idx).focus();
   }
 
-  function saveAvg(idx) {
+  async function saveAvg(idx) {
     const inp = UI.$('avg-inp-' + idx);
     if (!inp) return;
     const val = Math.max(0, parseInt(inp.value) || 0);
-    const items = Items.load();
-    items[idx] = { ...items[idx], monthAvg: val };
-    Items.save(items);
-    render();
+    try {
+      await Items.update(idx, { monthAvg: val });
+      render();
+    } catch (e) {
+      alert('저장 오류: ' + e.message);
+    }
   }
 
-  function deleteItem(idx) {
+  async function deleteItem(idx) {
     if (!confirm('이 품목을 삭제할까요?')) return;
-    Items.remove(idx);
-    render();
+    try {
+      await Items.remove(idx);
+      render();
+    } catch (e) {
+      alert('삭제 오류: ' + e.message);
+    }
   }
 
   function openAddModal() {
@@ -167,18 +182,25 @@ const InboundPage = (() => {
     UI.$('newName').focus();
   }
 
-  function addItem() {
+  async function addItem() {
     const name = UI.$('newName').value.trim();
     const unit = UI.$('newUnit').value.trim() || '개';
     const avg = parseInt(UI.$('newAvg').value) || 0;
     const ib = parseInt(UI.$('newInbound').value) || 0;
     if (!name) { alert('품목명을 입력해 주세요!'); return; }
-    const id = Items.add(name, unit, avg);
-    closeAddModal();
-    if (ib > 0) {
-      Api.insert('inbound', [{ month: selectedMonth, item_id: id, qty: ib }]).catch(() => {});
+    const btn = document.querySelector('#modalBg .btn-main');
+    if (btn) { btn.disabled = true; btn.textContent = '추가 중...'; }
+    try {
+      const id = await Items.add(name, unit, avg);
+      if (ib > 0) {
+        await Api.insert('inbound', [{ month: selectedMonth, item_id: id, qty: ib }]);
+      }
+      closeAddModal();
+      render();
+    } catch (e) {
+      alert('추가 오류: ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = '추가하기'; }
     }
-    render();
   }
 
   function closeAddModal() {

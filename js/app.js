@@ -18,13 +18,25 @@ const App = (() => {
     // 저장된 세션 복원 (토큰 갱신 완료까지 대기)
     const session = await Auth.restore();
     if (session) {
-      onLoginSuccess();
+      await onLoginSuccess();
     }
   }
 
-  function onLoginSuccess() {
+  async function loadSharedItems() {
+    // 본사면 비어 있을 때 시드, 그 외엔 단순 refresh
+    try {
+      if (Auth.role === 'hq') await Items.seedIfEmpty();
+      await Items.refresh();
+    } catch (e) {
+      console.warn('품목 동기화 실패, 캐시 사용:', e.message);
+    }
+  }
+
+  async function onLoginSuccess() {
     UI.$('loginScreen').style.display = 'none';
     UI.$('appBody').style.display = 'block';
+
+    await loadSharedItems();
 
     // 역할 배지
     const badge = UI.$('roleBadge');
@@ -83,7 +95,7 @@ const App = (() => {
     btn.textContent = '로그인 중...';
     try {
       await Auth.login(email, pw);
-      onLoginSuccess();
+      await onLoginSuccess();
     } catch (e) {
       err.textContent = e.message;
       btn.disabled = false;
