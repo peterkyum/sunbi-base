@@ -4,11 +4,32 @@
 const Notify = (() => {
   const cfg = () => window.SUNBI_CONFIG || {};
 
-  async function telegram(rows, today, dailyInbound) {
-    const token = cfg().TELEGRAM_TOKEN;
-    const chatId = cfg().TELEGRAM_CHAT_ID;
-    if (!token || !chatId) return;
+  // 설정된 모든 텔레그램 chat_id 반환 (기본 + 추가)
+  function telegramChatIds() {
+    const c = cfg();
+    const ids = [];
+    if (c.TELEGRAM_CHAT_ID) ids.push(String(c.TELEGRAM_CHAT_ID));
+    if (Array.isArray(c.TELEGRAM_EXTRA_CHAT_IDS)) {
+      c.TELEGRAM_EXTRA_CHAT_IDS.forEach(id => { if (id) ids.push(String(id)); });
+    }
+    return ids;
+  }
 
+  async function sendTelegramText(text) {
+    const token = cfg().TELEGRAM_TOKEN;
+    const chatIds = telegramChatIds();
+    if (!token || chatIds.length === 0) return;
+
+    await Promise.all(chatIds.map(chatId =>
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+      }).catch(() => { /* 개별 전송 실패 무시 */ })
+    ));
+  }
+
+  async function telegram(rows, today, dailyInbound) {
     try {
       const d = new Date(today + 'T00:00:00');
       const dateStr = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
@@ -17,12 +38,7 @@ const Notify = (() => {
         return `• <b>${r.item_name}</b>\n  현재재고: ${r.remain_qty}박스 | 소진: ${r.consumed_qty}박스${ib > 0 ? ` | 입고: +${ib}박스` : ''}`;
       }).join('\n');
       const text = `📦 <b>[선비칼국수] ${dateStr} 재고 입력 완료</b>\n\n${lines}\n\n✅ 유통사 담당자가 오늘 재고를 제출했어요.`;
-
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
-      });
+      await sendTelegramText(text);
     } catch (e) {
       // 알림 실패는 주요 기능에 영향 없음
     }
@@ -98,10 +114,6 @@ const Notify = (() => {
   }
 
   async function sendOrderTelegram(orderRows, date) {
-    const token = cfg().TELEGRAM_TOKEN;
-    const chatId = cfg().TELEGRAM_CHAT_ID;
-    if (!token || !chatId) return;
-
     try {
       const d = new Date(date + 'T00:00:00');
       const dateStr = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
@@ -110,12 +122,7 @@ const Notify = (() => {
       ).join('\n');
       const total = orderRows.reduce((a, r) => a + r.order_qty, 0);
       const text = `📋 <b>[선비칼국수] ${dateStr} 발주 확정</b>\n\n${lines}\n\n📦 총 ${orderRows.length}개 품목 / ${total}박스\n✅ 본사에서 발주를 확정했어요.`;
-
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
-      });
+      await sendTelegramText(text);
     } catch (e) {
       // 알림 실패는 주요 기능에 영향 없음
     }
