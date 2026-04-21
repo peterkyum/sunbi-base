@@ -2,9 +2,6 @@
 // 1. 재고 입력 페이지
 // ══════════════════════════════════════
 const InputPage = (() => {
-  let submitted = false;
-  let resetMode = false;
-
   function previewConsumed3(id, prevStock, unit) {
     const elIb = UI.$('inp-ib-' + id);
     const elRemain = UI.$('inp-' + id);
@@ -50,33 +47,22 @@ const InputPage = (() => {
       return;
     }
 
-    // 오늘 이미 모든 품목 제출됐으면 성공 화면
-    if (!resetMode) {
-      const allSubmitted = ITEMS.length > 0 && ITEMS.every(it => todayData[it.id] !== undefined);
-      if (allSubmitted) submitted = true;
-    }
+    // 오늘 이미 모든 품목 제출됐는지 확인 (배너용)
+    const allSubmitted = ITEMS.length > 0 && ITEMS.every(it => todayData[it.id] !== undefined);
 
-    if (submitted) {
-      UI.$('inputMain').innerHTML = `
-      <div class="success-screen">
-        <div class="success-circle">\u2713</div>
-        <div class="success-title">오늘 재고 제출 완료!</div>
-        <div class="success-sub">서버에 저장됐어요.<br>본사에서 실시간으로 확인할 수 있어요</div>
-        <button class="btn-ghost" onclick="InputPage.reset()">다시 입력하기</button>
-      </div>`;
-      return;
-    }
-
-    let html = UI.alertHtml('amber', '오늘 남은 재고와 당일 입고 수량을 품목별로 입력해 주세요.');
+    let html = allSubmitted
+      ? UI.alertHtml('green', '오늘 재고 제출 완료! 아래 "전날 최종재고"에서 현재 재고를 확인할 수 있어요.')
+      : UI.alertHtml('amber', '오늘 남은 재고와 당일 입고 수량을 품목별로 입력해 주세요.');
 
     ITEMS.forEach(it => {
-      const rawPrevBase = resetMode && todayData[it.id] !== undefined
+      // 오늘 제출한 값이 있으면 그 값을, 없으면 전일 최종재고를 "전날 최종재고" 자리에 표시
+      const rawPrevBase = todayData[it.id] !== undefined
         ? todayData[it.id]
         : (prevData[it.id] !== undefined ? prevData[it.id] : null);
       const prevBase = rawPrevBase !== null ? Math.max(0, rawPrevBase) : null;
       const prevStock = prevBase !== null ? prevBase : null;
 
-      const prevLabel = resetMode && todayData[it.id] !== undefined
+      const prevLabel = todayData[it.id] !== undefined
         ? `오늘 제출 ${Math.max(0, todayData[it.id])}${it.unit}`
         : (prevData[it.id] !== undefined ? `전일 ${Math.max(0, prevData[it.id])}${it.unit}` : '전일 미입력');
 
@@ -112,7 +98,6 @@ const InputPage = (() => {
 
     html += `<button class="btn-main" id="submitBtn" onclick="InputPage.submit()">오늘 재고 제출하기</button>`;
     UI.$('inputMain').innerHTML = html;
-    resetMode = false;
   }
 
   function renderHQView(ITEMS, todayData, prevData, inboundData) {
@@ -216,7 +201,6 @@ const InputPage = (() => {
       await Notify.telegram(rows, today, dailyIbMap);
       await Notify.sendStockToSheet(rows, today, dailyIbMap);
 
-      submitted = true;
       UI.$('syncDot').className = 'sync-dot ok';
       render();
     } catch (e) {
@@ -227,16 +211,9 @@ const InputPage = (() => {
     }
   }
 
-  function reset() {
-    submitted = false;
-    resetMode = true;
-    render();
-  }
-
   function clearState() {
-    submitted = false;
-    resetMode = false;
+    // 상태 초기화 불필요 (render 시점에 항상 최신 데이터 로드)
   }
 
-  return { render, submit, reset, clearState };
+  return { render, submit, clearState };
 })();
