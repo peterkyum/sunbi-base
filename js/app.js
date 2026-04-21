@@ -52,9 +52,9 @@ const App = (() => {
     document.querySelectorAll('.tab').forEach(t => { t.style.display = 'flex'; });
 
     if (Auth.role === 'dist') {
-      // 유통사: 재고입력 탭만
+      // 유통사: 재고입력 + 대시보드 (현재 재고 확인용)
       document.querySelectorAll('.tab').forEach((t, i) => {
-        if (i !== 0) t.style.display = 'none';
+        if (i !== 0 && i !== 1) t.style.display = 'none';
       });
       goTab('input');
     } else {
