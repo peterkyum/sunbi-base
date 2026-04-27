@@ -103,13 +103,19 @@ const App = (() => {
     }
   }
 
-  // 허브로 돌아가기: 모바일(탭 닫기) / 데스크탑(뒤로가기)
+  // 허브로 돌아가기: 새 탭(닫기) / iframe(부모 이동) / 직접 진입(허브 URL)
   function goBackToHub() {
+    const HUB_URL = 'https://sunbi-hub.vercel.app';
     if (window.opener != null) {
       window.close(); // window.open으로 열린 새 탭 닫기
-    } else {
-      history.back(); // iframe 또는 일반 뒤로가기
+      return;
     }
+    if (window.top !== window) {
+      // iframe 안 — 부모(hub) 페이지를 허브로 이동
+      try { window.top.location.href = HUB_URL; return; } catch (_) {}
+    }
+    // 직접 열린 경우 — 허브로 이동 (history 비어 있을 때 안전)
+    window.location.href = HUB_URL;
   }
 
   return { init, onLoginSuccess, goTab, handleLogin, goBackToHub };
