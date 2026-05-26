@@ -46,7 +46,7 @@ const Items = (() => {
   }
 
   function fromRow(r) {
-    return { id: r.id, name: r.name, unit: r.unit, monthAvg: r.month_avg };
+    return { id: r.id, name: r.name, unit: r.unit, monthAvg: r.month_avg, sortOrder: r.sort_order };
   }
 
   // Supabase에서 최신 품목 목록 가져와 캐시 갱신
@@ -135,6 +135,46 @@ const Items = (() => {
     await updateById(target.id, fields);
   }
 
+  // 주어진 id 순서대로 sort_order(1..N)를 재할당. 변경된 항목만 Supabase에 반영.
+  // orderedIds에 없는 기존 항목은 기존 순서를 유지한 채 뒤에 보존한다.
+  async function reorder(orderedIds) {
+    const items = load();
+    const byId = {};
+    items.forEach(it => { byId[it.id] = it; });
+
+    const seen = new Set();
+    const ordered = [];
+    orderedIds.forEach(id => {
+      if (byId[id] && !seen.has(id)) { ordered.push(byId[id]); seen.add(id); }
+    });
+    items.forEach(it => { if (!seen.has(it.id)) ordered.push(it); });
+
+    const updates = [];
+    ordered.forEach((it, i) => {
+      const newOrder = i + 1;
+      if (it.sortOrder !== newOrder) updates.push({ id: it.id, sort_order: newOrder });
+    });
+
+    // 낙관적 캐시 갱신 (즉시 UI 반영)
+    _cache = ordered.map((it, i) => ({ ...it, sortOrder: i + 1 }));
+    writeCache(_cache);
+
+    for (const u of updates) {
+      await Api.patch('items', `id=eq.${encodeURIComponent(u.id)}`, { sort_order: u.sort_order });
+    }
+    await refresh();
+  }
+
+  // 한 품목을 위(dir=-1)/아래(dir=+1)로 한 칸 이동
+  async function move(idx, dir) {
+    const items = load();
+    const j = idx + dir;
+    if (idx < 0 || idx >= items.length || j < 0 || j >= items.length) return;
+    const ids = items.map(it => it.id);
+    [ids[idx], ids[j]] = [ids[j], ids[idx]];
+    await reorder(ids);
+  }
+
   return {
     load,
     refresh,
@@ -144,6 +184,8 @@ const Items = (() => {
     removeById,
     update,
     updateById,
+    reorder,
+    move,
     SAFETY,
   };
 })();

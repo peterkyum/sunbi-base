@@ -46,11 +46,20 @@ const InboundPage = (() => {
       html += `<button class="btn-sub" onclick="InboundPage.openAddModal()">+ 새 품목 추가하기</button>`;
 
       html += `<div class="section-label">등록된 품목 목록 (${ITEMS.length}개)</div>
+      <div style="font-size:11px;color:var(--gray-600);margin:0 0 6px">↑ ↓ 버튼으로 순서를 바꾸면 유통사 재고입력 화면에도 동일하게 반영돼요.</div>
       <div class="card"><table class="tbl">
-        <thead><tr><th><input type="checkbox" id="chk-all" onchange="InboundPage.toggleAll(this.checked)"></th><th>품목명</th><th>단위</th><th>월평균</th><th></th></tr></thead><tbody>`;
+        <thead><tr><th><input type="checkbox" id="chk-all" onchange="InboundPage.toggleAll(this.checked)"></th><th>순서</th><th>품목명</th><th>단위</th><th>월평균</th><th></th></tr></thead><tbody>`;
+      const lastIdx = ITEMS.length - 1;
       ITEMS.forEach((it, idx) => {
+        const upDisabled = idx === 0 ? 'disabled' : '';
+        const downDisabled = idx === lastIdx ? 'disabled' : '';
+        const arrowStyle = 'border:none;background:var(--gray-100,#eef1f5);color:var(--gray-700,#444);border-radius:6px;padding:3px 7px;font-size:13px;line-height:1;cursor:pointer;font-family:inherit';
         html += `<tr>
           <td><input type="checkbox" class="item-chk" data-idx="${idx}"></td>
+          <td style="white-space:nowrap">
+            <button onclick="InboundPage.moveItem(${idx},-1)" ${upDisabled} style="${arrowStyle}${upDisabled ? ';opacity:.3;cursor:default' : ''}" title="위로">↑</button>
+            <button onclick="InboundPage.moveItem(${idx},1)" ${downDisabled} style="${arrowStyle}${downDisabled ? ';opacity:.3;cursor:default' : ''}" title="아래로">↓</button>
+          </td>
           <td style="font-weight:700" id="name-td-${idx}">${UI.escapeHtml(it.name)}</td><td>${UI.escapeHtml(it.unit)}</td>
           <td id="avg-td-${idx}">${it.monthAvg}</td>
           <td style="white-space:nowrap">
@@ -167,6 +176,15 @@ const InboundPage = (() => {
     }
   }
 
+  async function moveItem(idx, dir) {
+    try {
+      await Items.move(idx, dir);
+      render();
+    } catch (e) {
+      alert('순서 변경 오류: ' + e.message);
+    }
+  }
+
   async function deleteItem(idx) {
     if (!confirm('이 품목을 삭제할까요?')) return;
     try {
@@ -208,5 +226,5 @@ const InboundPage = (() => {
     ['newName', 'newUnit', 'newAvg', 'newInbound'].forEach(id => { UI.$(id).value = ''; });
   }
 
-  return { render, changeMonth, save, deleteItem, toggleAll, resetSelected, editName, saveName, editAvg, saveAvg, openAddModal, addItem, closeAddModal };
+  return { render, changeMonth, save, moveItem, deleteItem, toggleAll, resetSelected, editName, saveName, editAvg, saveAvg, openAddModal, addItem, closeAddModal };
 })();

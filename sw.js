@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sunbi-v18';
+const CACHE_NAME = 'sunbi-v19';
 const ASSETS = [
   './',
   './index.html',
