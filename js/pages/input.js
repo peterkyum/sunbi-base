@@ -145,9 +145,14 @@ const InputPage = (() => {
     btn.textContent = '저장 중...';
 
     try {
-      const prevRows = await Api.get('stocks', `date=eq.${yISO}&select=item_id,remain_qty`);
+      // 직전 재고는 '어제'가 아니라 '가장 최근에 제출된 날'을 기준으로 한다.
+      // 주말·휴무로 입력이 빠진 날이 있으면 어제 데이터가 없어 소진량이 0으로 잘못 계산되기 때문.
+      // 날짜 내림차순으로 받아 품목별 첫(=최신) 값만 채택 — Apps Script의 findPrevRemain과 동일한 규칙.
+      const prevRows = await Api.get('stocks', `date=lt.${today}&select=item_id,remain_qty,date&order=date.desc`);
       const prevMap = {};
-      prevRows.forEach(r => { prevMap[r.item_id] = r.remain_qty; });
+      prevRows.forEach(r => {
+        if (prevMap[r.item_id] === undefined) prevMap[r.item_id] = r.remain_qty;
+      });
 
       // 당일 입고 수량 수집
       const ibEntries = [];

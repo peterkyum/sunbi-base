@@ -107,10 +107,11 @@ def save_to_sheet(date: str, stocks: list[dict], inbounds: list[dict]) -> dict:
     inbound_map = {i['item_name']: i['qty'] for i in inbounds}
     rows = []
     for s in stocks:
+        # consumed_qty는 보내지 않는다. Apps Script가 findPrevRemain으로 직전 재고를 찾아
+        # 소진량을 계산하도록 위임한다. (0을 보내면 최신 Apps Script가 그 0을 그대로 기록함)
         rows.append({
             'item_name': s['item_name'],
             'remain_qty': s['remain_qty'],
-            'consumed_qty': 0,
             'inbound_qty': inbound_map.get(s['item_name'], 0)
         })
     payload = json.dumps({
