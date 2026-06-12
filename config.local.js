@@ -9,6 +9,7 @@ window.SUNBI_CONFIG = {
   // Telegram (웹 UI → 텔레그램 알림용)
   TELEGRAM_TOKEN: '8624851417:AAFohaEN56XVSJ5y67c94z88gSBcOPtBOoE',
   TELEGRAM_CHAT_ID: '8774713020',
+  TELEGRAM_EXTRA_CHAT_IDS: ['-5252587192'],
 
   // Google Apps Script (웹 UI → 구글 시트 백업용)
   SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxF8dHwOId2dBbD-ElwuminE6bEoopCo3p58YldxYgWuiBOBhdtWSHh3hMSv0xXZoUemw/exec',
